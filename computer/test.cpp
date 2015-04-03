@@ -1,5 +1,5 @@
 #include <iostream>
-#include "sensor_controller.hpp"
+#include "motion_controller.hpp"
 
 using namespace std;
 using namespace kybernetes;
@@ -7,13 +7,26 @@ using namespace kybernetes;
 int main (int argc, char** argv)
 {
     // Get the main dispatch queue
-    SensorController controller("/dev/ttyACM0");
-    controller.RegisterHandler([] (SensorController::State& state)
+    MotionController controller("/dev/kybernetes/motion_controller");
+
+    promise<void> p;
+    bool done = false;
+    controller.RegisterAlertHandler([&p, &done] (string s)
     {
-        //std::cout << "Sonars = " << state.sonar[0] << ", " << state.sonar[1] << ", " << state.sonar[2] << std::endl;
-        std::cout << "Bumpers = " << state.bumper[0] << ", " << state.bumper[1] << std::endl;
-        //std::cout << "IMU = " << state.rotation[0] << ", " << state.rotation[1] << ", " << state.rotation[2] << std::endl;
+        if(s == "READY" && !done)
+        {
+            p.set_value();
+            done = true;
+        }
     });
+
+    p.get_future().wait();
+
+    std::cout << "Sending arming request" << endl;
+    future<string> response = controller.RequestARM();
+    response.wait();
+    std::cout << "Got: " << response.get() << endl;
+
     controller.Join();
 
     return 0;
