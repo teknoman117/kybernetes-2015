@@ -45,6 +45,7 @@ namespace kybernetes
 
     public:
         GarminGPS(std::string path, const SerialPort::BaudRate baudRate = SerialPort::BAUD_9600);
+        ~GarminGPS();
         void processMessage(std::string& message);
         void Close();
 

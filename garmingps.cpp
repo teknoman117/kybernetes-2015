@@ -19,6 +19,11 @@ GarminGPS::GarminGPS(std::string path, const SerialPort::BaudRate baudRate)
 
 }
 
+GarminGPS::~GarminGPS()
+{
+    this->Close();
+}
+
 // Verify that a packet from the GPS is valid
 bool GarminGPS::IsValidGPSSentence(const std::string& sentence)
 {
