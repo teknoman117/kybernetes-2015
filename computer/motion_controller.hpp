@@ -11,7 +11,7 @@ namespace kybernetes
     {
     public:
         typedef std::function<void (std::string)> request_handler_t;
-
+        typedef std::future<std::string>          request_future_t;
     private:
         std::mutex callbacksMutex;
         std::mutex requestsMutex;
@@ -28,7 +28,10 @@ namespace kybernetes
         void processMessage(std::string& message);
         void Close();
 
-        std::future<std::string> RequestARM();
+        // Requests from the motion controller
+        request_future_t RequestArm();
+        request_future_t RequestDisarm();
+        request_future_t RequestArmStatus();
 
         void RegisterAlertHandler(request_handler_t handler);
     };

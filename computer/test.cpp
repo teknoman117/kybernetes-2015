@@ -22,8 +22,8 @@ int main (int argc, char** argv)
 
     p.get_future().wait();
 
-    std::cout << "Sending arming request" << endl;
-    future<string> response = controller.RequestARM();
+    std::cout << "Sending arming stat request" << endl;
+    future<string> response = controller.RequestArmStatus();
     response.wait();
     std::cout << "Got: " << response.get() << endl;
 

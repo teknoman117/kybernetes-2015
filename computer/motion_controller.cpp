@@ -11,6 +11,9 @@
 using namespace kybernetes;
 using namespace std;
 
+static const string commandNames[6] = {"ARM", "DISARM", "ARMSTAT", "PING", "VELOCITY", "STEER"};
+static const size_t commandNamesLength = 6;
+
 // Open the GPS
 MotionController::MotionController(std::string path, const SerialPort::BaudRate baudRate)
     : SerialDevice(path, baudRate)
@@ -59,7 +62,9 @@ void MotionController::processMessage(std::string& message)
             handler(parameters[0]);
         });
     }
-    else if(commands[0] == "ARM")
+
+    // Is this a known "one response" command?
+    else if(find(commandNames, commandNames + commandNamesLength, commands[0]) != commandNames + commandNamesLength)
     {
         if(parameters.size() != 2)
             return;
@@ -68,7 +73,7 @@ void MotionController::processMessage(std::string& message)
         int code = atoi(parameters[1].c_str());
         {
             lock_guard<mutex> lock(requestsMutex);
-            auto request = requests.find(make_pair(code, string("ARM")));
+            auto request = requests.find(make_pair(code, commands[0]));
             if(request != requests.end())
             {
                 request->second.set_value(parameters[0]);
@@ -76,41 +81,8 @@ void MotionController::processMessage(std::string& message)
             }
         }
     }
-    else if(commands[0] == "DISARM")
-    {
-        if(parameters.size() != 2)
-            return;
 
-        // Process the result of the disarm command
-    }
-    else if(commands[0] == "ARMSTAT")
-    {
-        if(parameters.size() != 2)
-            return;
 
-        // Process the result of the armstat command
-    }
-    else if(commands[0] == "PING")
-    {
-        if(parameters.size() != 2)
-            return;
-
-        // Process the result of the ping command
-    }
-    else if(commands[0] == "VELOCITY")
-    {
-        if(parameters.size() != 2)
-            return;
-
-        // Process the result of the velocity command
-    }
-    else if(commands[0] == "STEER")
-    {
-        if(parameters.size() != 2)
-            return;
-
-        // Process the result of the steer command
-    }
 
     // Push out these events to the registered handlers
     /*lock_guard<mutex> lock(callbacksMutex);
@@ -120,16 +92,57 @@ void MotionController::processMessage(std::string& message)
     });*/
 }
 
-std::future<std::string> MotionController::RequestARM()
+MotionController::request_future_t MotionController::RequestArm()
 {
     // Push out a arming request command
     int code = rand() & 0xFFFF;
-    lock_guard<mutex> lock(requestsMutex);
-    auto r = requests.insert(make_pair(make_pair(code, string("ARM")), std::move(promise<string>())));
+    pair<std::map<std::pair<int, std::string>, std::promise<std::string> >::iterator, bool> r;
+    {
+        lock_guard<mutex> lock(requestsMutex);
+        r = requests.insert(make_pair(make_pair(code, string("ARM")), std::move(promise<string>())));
+    }
 
     // Push out the command
     stringstream stream;
     stream << "ARM:" << code << "\r\n";
+    serialPort.Write(stream.str());
+
+    // Return the future
+    return r.first->second.get_future();
+}
+
+MotionController::request_future_t MotionController::RequestDisarm()
+{
+    // Push out a arming request command
+    int code = rand() & 0xFFFF;
+    pair<std::map<std::pair<int, std::string>, std::promise<std::string> >::iterator, bool> r;
+    {
+        lock_guard<mutex> lock(requestsMutex);
+        r = requests.insert(make_pair(make_pair(code, string("DISARM")), std::move(promise<string>())));
+    }
+
+    // Push out the command
+    stringstream stream;
+    stream << "DISARM:" << code << "\r\n";
+    serialPort.Write(stream.str());
+
+    // Return the future
+    return r.first->second.get_future();
+}
+
+MotionController::request_future_t MotionController::RequestArmStatus()
+{
+    // Push out a arming request command
+    int code = rand() & 0xFFFF;
+    pair<std::map<std::pair<int, std::string>, std::promise<std::string> >::iterator, bool> r;
+    {
+        lock_guard<mutex> lock(requestsMutex);
+        r = requests.insert(make_pair(make_pair(code, string("ARMSTAT")), std::move(promise<string>())));
+    }
+
+    // Push out the command
+    stringstream stream;
+    stream << "ARMSTAT:" << code << "\r\n";
     serialPort.Write(stream.str());
 
     // Return the future
