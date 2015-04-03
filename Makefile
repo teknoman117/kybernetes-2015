@@ -4,14 +4,14 @@ CFLAGS=-std=c11 -O3
 CXXFLAGS=-std=c++11 -O3
 LDFLAGS=-O3 -lserial -lpthread
 
-SOURCES=serialdevice.cpp garmingps.cpp
+SOURCES=utility.cpp serialdevice.cpp garmingps.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
 
 %.o: %.cpp $(SOURCES)
-	$(CXX) -c -o $@ $< $(CXXFLAGS)
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 %.o: %.c $(SOURCES)
-	$(CC) -c -o $@ $< $(CFLAGS)
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 all: robomagellan test
 

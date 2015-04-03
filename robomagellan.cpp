@@ -3,6 +3,7 @@
 #include <ctime>
 
 #include "kybernetes.hpp"
+#include "utility.hpp"
 #include "garmingps.hpp"
 
 using namespace kybernetes;
