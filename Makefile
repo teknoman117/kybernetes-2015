@@ -1,7 +1,7 @@
 CC=clang
 CXX=clang++
-CFLAGS=-std=c11 -O3
-CXXFLAGS=-std=c++11 -O3
+CFLAGS=-std=c11 -O3 -g
+CXXFLAGS=-std=c++11 -O3 -g
 LDFLAGS=-O3 -lserial -lpthread
 
 SOURCES=utility.cpp serialdevice.cpp garmingps.cpp

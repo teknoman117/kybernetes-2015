@@ -1,21 +1,20 @@
-#include "garmingps.hpp"
-
 #include <iostream>
-#include <unistd.h>
-#include <ctime>
+#include "utility.hpp"
 
-using namespace kybernetes;
+#include <algorithm>
 
-int main ()
+using namespace std;
+
+int main (int argc, char** argv)
 {
-    // Get the main dispatch queeu
-    kybernetes::GarminGPS gps("/dev/ttyUSB0");
-    gps.RegisterHandler([] (GarminGPS::State& state)
+    // Get the main dispatch queue
+    std::string inputMessage = argv[1];
+    vector<string> buffera;
+    tokenize(inputMessage, ";", buffera);
+    for_each(buffera.begin(), buffera.end(), [] (string& t)
     {
-        // Print out the location
-        std::cout << "location = " << state.latitude << "," << state.longitude << ";" << state.altitude << "m @ " << asctime(localtime((time_t*)&state.timestamp));
+        std::cout << "Found: " << t << endl;
     });
-    gps.Join();
 
     return 0;
 }
