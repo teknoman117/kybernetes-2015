@@ -6,20 +6,20 @@
 
 namespace kybernetes
 {
-    class GarminGPS : SerialDevice
+    class GarminGPS : public SerialDevice
     {
     public:
         struct State
         {
             // Type of fix of a garmin gps
-            typedef enum _fix_status_t : uint32_t
+            typedef enum _fix_status_t : char
             {
-                Invalid = 0,
-                Simulated = 1,
-                TwoDimentional = 2,
-                ThreeDimentional = 3,
-                Differential2D = 4,
-                Differential3D = 5
+                Invalid = '_',
+                Simulated = 'S',
+                TwoDimentional = 'g',
+                ThreeDimentional = 'G',
+                Differential2D = 'd',
+                Differential3D = 'D'
             } FixStatus ;
 
             // Basic coordinate
@@ -32,17 +32,23 @@ namespace kybernetes
             FixStatus status;
             float     precision;
             float     velocity[3];
+
+            // Some utility functions
+            double DistanceTo(struct State& state);
+            double HeadingTo(struct State& state);
+            State();
         };
     private:
-        volatile bool killWorker;
-        std::thread worker;
         static bool IsValidGPSSentence(const std::string& sentence);
+        std::mutex callbacksMutex;
+        std::vector<std::function<void (GarminGPS::State&)> > callbacks;
 
     public:
-        GarminGPS(std::string path, dispatch_queue_t queue);
+        GarminGPS(std::string path, const SerialPort::BaudRate baudRate = SerialPort::BAUD_9600);
+        void processMessage(std::string& message);
+        void Close();
 
-        void Open(void (^completionHandler)(bool, std::string error));
-        void Close(void (^completionHandler)());
+        void RegisterHandler(std::function<void (GarminGPS::State&)> handler);
     };
 }
 

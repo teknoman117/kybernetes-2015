@@ -1,46 +1,53 @@
 #include "serialdevice.hpp"
 
 using namespace kybernetes;
+using namespace std;
 
-// Create a serial device, storing the path and a dispatch queue
-SerialDevice::SerialDevice(std::string path, dispatch_queue_t queue)
-    : serialPort(path), queue(queue)
+// Create a serial device
+SerialDevice::SerialDevice(string path, const SerialPort::BaudRate baudRate)
+    : serialPort(path), killWorker(false)
 {
-
-}
-
-// Open the serial device
-bool SerialDevice::Open(const SerialPort::BaudRate baudRate,
-                        const SerialPort::CharacterSize characterSize,
-                        const SerialPort::Parity parityType,
-                        const SerialPort::StopBits stopBits,
-                        const SerialPort::FlowControl flowControl)
-{
-    // If the port is already open, close it first
-    if(serialPort.IsOpen())
-    {
-        serialPort.Close();
-    }
-
     // Open the serial port
-    try
-    {
-        serialPort.Open(baudRate, characterSize, parityType, stopBits, flowControl);
-    }
-    catch (std::runtime_error e)
-    {
-        return false;
-    }
+    serialPort.Open(baudRate, SerialPort::CHAR_SIZE_8, SerialPort::PARITY_NONE, SerialPort::STOP_BITS_1, SerialPort::FLOW_CONTROL_NONE);
 
-    // Success
-    return true;
+    // Fire up a thread to process sentences from the device
+    worker = thread([this] ()
+    {
+        bool localKillWorker = false;
+        while(!localKillWorker)
+        {
+            try
+            {
+                string message = serialPort.ReadLine(2500);
+                processMessage(message);
+            }
+            catch (SerialPort::ReadTimeout)
+            {
+                // This is probably a bad time (tm)
+            }
+
+            // Check if we should kill off the worker thread
+            {
+                lock_guard<mutex> lock(killWorkerMutex);
+                localKillWorker = killWorker;
+            }
+        }
+        serialPort.Close();
+    });
 }
 
-// Close the serial device
+// Blocks until the worker is killed off
 void SerialDevice::Close()
 {
-    if(serialPort.IsOpen())
+    // Kill the worker
     {
-        serialPort.Close();
+        lock_guard<mutex> lock(killWorkerMutex);
+        killWorker = true;
     }
+    worker.join();
+}
+
+void SerialDevice::Join()
+{
+    worker.join();
 }

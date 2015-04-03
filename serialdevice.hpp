@@ -2,33 +2,29 @@
 #define  __SERIAL_DEVICE_HPP__
 
 #include <SerialPort.h>
-#include <dispatch/dispatch.h>
 
-#include <iostream>
 #include <string>
 #include <thread>
-#include <functional>
+#include <mutex>
 
 namespace kybernetes
 {
     class SerialDevice
     {
+    public:
+        void Join();
+
     protected:
-        dispatch_queue_t queue;
-        SerialPort       serialPort;
+        SerialPort    serialPort;
 
-        // Create a serial device, storing the path and a dispatch queue
-        SerialDevice(std::string path, dispatch_queue_t queue);
+        // Kill worker signal
+        volatile bool killWorker;
+        std::mutex    killWorkerMutex;
+        std::thread   worker;
 
-        // Open the serial device
-        virtual bool Open(const SerialPort::BaudRate baudRate,
-                          const SerialPort::CharacterSize characterSize,
-                          const SerialPort::Parity parityType,
-                          const SerialPort::StopBits stopBits,
-                          const SerialPort::FlowControl flowControl);
-
-        // Close the serial device
-        virtual void Close();
+        SerialDevice(std::string path, const SerialPort::BaudRate baudRate);
+        virtual void processMessage(std::string& message) = 0;
+        void Close();
     };
 }
 

@@ -1,19 +1,21 @@
 #include "garmingps.hpp"
 
+#include <iostream>
+#include <unistd.h>
+#include <ctime>
+
+using namespace kybernetes;
+
 int main ()
 {
     // Get the main dispatch queeu
-    kybernetes::GarminGPS gps("/dev/ttyUSB0", dispatch_get_main_queue());
-    gps.Open(^(bool success, std::string error)
+    kybernetes::GarminGPS gps("/dev/ttyUSB0");
+    gps.RegisterHandler([] (GarminGPS::State& state)
     {
-        if(success)
-            std::cout << "GPS successfully opened" << std::endl;
-        else
-            std::cout << "GPS failed to open: " << error << std::endl;
+        // Print out the location
+        std::cout << "location = " << state.latitude << "," << state.longitude << ";" << state.altitude << "m @ " << asctime(localtime((time_t*)&state.timestamp));
     });
-
-    dispatch_main();
-    //while(1);
+    gps.Join();
 
     return 0;
 }
