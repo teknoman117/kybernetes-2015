@@ -1,4 +1,5 @@
 #include "garmingps.hpp"
+#include "kybernetes.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -9,8 +10,6 @@ using namespace std;
 
 // Earth properties
 const double R = 6371000;
-const double DegToRad = 3.14159265359 / 180.0;
-const double RadToDeg = 180.0 / 3.14159265359;
 
 // Open the GPS
 GarminGPS::GarminGPS(std::string path, const SerialPort::BaudRate baudRate)

@@ -42,6 +42,11 @@ void SerialDevice::Close()
     // Kill the worker
     {
         lock_guard<mutex> lock(killWorkerMutex);
+
+        // If the worker is running
+        if(killWorker)
+            return;
+
         killWorker = true;
     }
     worker.join();
@@ -49,5 +54,12 @@ void SerialDevice::Close()
 
 void SerialDevice::Join()
 {
+    {
+        lock_guard<mutex> lock(killWorkerMutex);
+
+        // If the worker is running
+        if(killWorker)
+            return;
+    }
     worker.join();
 }

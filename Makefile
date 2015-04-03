@@ -4,7 +4,7 @@ CFLAGS=-std=c11 -O3 -g
 CXXFLAGS=-std=c++11 -O3 -g
 LDFLAGS=-O3 -lserial -lpthread
 
-SOURCES=utility.cpp serialdevice.cpp garmingps.cpp
+SOURCES=utility.cpp serialdevice.cpp garmingps.cpp sensor_controller.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
 
 %.o: %.cpp $(SOURCES)
