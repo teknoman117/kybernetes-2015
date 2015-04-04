@@ -87,7 +87,12 @@ private:
     // Called when the GPS has been updated
     void GarminGPSHandler (GarminGPS::State& state)
     {
-        // Compute
+        // Compute heading and distance to target
+        headingToObjective = state.HeadingTo(currentObjective->coordinate);
+        distanceToObjective = state.DistanceTo(currentObjective->coordinate);
+
+        // Log
+        cout << headingToObjective << " " << distanceToObjective << endl;
     }
 
     // Called when the Sensor controller has posted a packet
@@ -162,7 +167,7 @@ private:
 
 public:
     Application(list<Waypoint>& route)
-        : route(route), motionState(Unknown)
+        : route(route), currentObjective(route.begin()), motionState(Unknown)
     {
         // Initialize the GPS
         auto gpsCallback = bind(&Application::GarminGPSHandler, this, std::placeholders::_1);
