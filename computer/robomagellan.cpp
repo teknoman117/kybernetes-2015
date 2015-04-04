@@ -1,7 +1,12 @@
 #include <iostream>
+
 #include <unistd.h>
 #include <ctime>
 #include <csignal>
+#include <thread>
+#include <mutex>
+#include <future>
+#include <chrono>
 
 #include "kybernetes.hpp"
 #include "utility.hpp"
@@ -12,23 +17,63 @@
 using namespace kybernetes;
 using namespace std;
 
+const string kMotionControllerAlertHeartbeat = "HEARTBEAT";
+const string kMotionControllerStateArmed = "ARMED";
+const string kMotionControllerStateDisarming = "DISARMING";
+const string kMotionControllerStateIdle = "IDLE";
+const string kMotionControllerStateKilled = "KILLED";
+
 class Application
 {
     GarminGPS        *gps;
     SensorController *sensorController;
     MotionController *motionController;
 
+    // Possible arming states
+    typedef enum _arming_state : unsigned char
+    {
+        Unknown,
+        Killed,
+        Idle,
+        Armed,
+        Disarming
+    } ArmingState;
+
+    // Arming stuff
+    ArmingState    motionState;
+    future<string> motionStateRequest;
+
     // Called when the GPS has been updated
     void GarminGPSHandler (GarminGPS::State& state)
     {
         // Print out the location
         //cout << "location = " << state.latitude << "," << state.longitude << ";" << state.altitude << "m @ " << asctime(localtime((time_t*)&state.timestamp));
+
+        // Compute
     }
 
     // Called when the Sensor controller has posted a packet
     void SensorControllerHandler (SensorController::State& state)
     {
-        //std::cout << "Sonars = " << state.sonar[0] << ", " << state.sonar[1] << ", " << state.sonar[2] << std::endl;
+        // If the controller is disengaged
+        if(motionState == Idle)
+        {
+            // Submit a request to arm the controller
+            future<string> request = motionController->RequestArm();
+            request.wait();
+            string result = request.get();
+            if(result != "OK")
+            {
+                cerr << "WARN: Failed to arm the controller" << endl;
+                return;
+            }
+        }
+
+        // If the state is killed do nothing
+        else if(motionState != Armed)
+            return;
+
+        std::cout << "Sonars = " << state.sonar[0] << ", " << state.sonar[1] << ", " << state.sonar[2] << std::endl;
         //std::cout << "Bumpers = " << state.bumper[0] << ", " << state.bumper[1] << std::endl;
         //std::cout << "IMU = " << state.rotation[0] << ", " << state.rotation[1] << ", " << state.rotation[2] << std::endl;
     }
@@ -36,12 +81,52 @@ class Application
     // Called when the motion controller posts an alert
     void MotionControllerAlertHandler (string alert)
     {
-        if(alert != "HEARTBEAT")
-            cout << "received alert: " << alert << endl;
+        // If this is a heartbeat tick
+        if(alert == kMotionControllerAlertHeartbeat)
+        {
+            // If the current state of the controller is unknown, submit a stat request
+            if(motionState == Unknown)
+            {
+                // If we haven't submitted a request
+                if(!motionStateRequest.valid())
+                    motionStateRequest = motionController->RequestArmStatus();
+
+                // Check on the request
+                if(motionStateRequest.wait_for(chrono::seconds(0)) == future_status::ready)
+                {
+                    string stateStr = motionStateRequest.get();
+                    if(stateStr == kMotionControllerStateKilled)
+                        motionState = Killed;
+                    else if(stateStr == kMotionControllerStateIdle)
+                        motionState = Idle;
+                    else if(stateStr == kMotionControllerStateArmed)
+                        motionState = Armed;
+                    else if(stateStr == kMotionControllerStateDisarming)
+                        motionState = Disarming;
+
+                    cout << "Upstart State = " << stateStr << endl;
+                }
+            }
+
+            // Do other things
+        }
+
+        // Detect activation state changes for the controller
+        else if(alert == kMotionControllerStateKilled)
+            motionState = Killed;
+        else if(alert == kMotionControllerStateIdle)
+            motionState = Idle;
+        else if(alert == kMotionControllerStateArmed)
+            motionState = Armed;
+        else if(alert == kMotionControllerStateDisarming)
+            motionState = Disarming;
+
+        // Do other things
     }
 
 public:
     Application()
+        : motionState(Unknown)
     {
         // Initialize the GPS
         auto gpsCallback = bind(&Application::GarminGPSHandler, this, std::placeholders::_1);
