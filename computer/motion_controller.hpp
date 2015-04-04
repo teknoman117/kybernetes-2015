@@ -20,8 +20,6 @@ namespace kybernetes
         std::vector<request_handler_t> callbacks;
         std::map<std::pair<int, std::string>, std::promise<std::string> > requests;
 
-        //State currentState;
-
     public:
         MotionController(std::string path, const SerialPort::BaudRate baudRate = SerialPort::BAUD_57600);
         ~MotionController();
@@ -32,7 +30,11 @@ namespace kybernetes
         request_future_t RequestArm();
         request_future_t RequestDisarm();
         request_future_t RequestArmStatus();
+        request_future_t RequestPing();
+        request_future_t RequestSetVelocity(short velocity);
+        request_future_t RequestSetSteering(short steering);
 
+        // Register to receive motor controller alert handlers
         void RegisterAlertHandler(request_handler_t handler);
     };
 }

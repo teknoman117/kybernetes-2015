@@ -25,6 +25,7 @@ namespace kybernetes
         SerialDevice(std::string path, const SerialPort::BaudRate baudRate);
         virtual void processMessage(std::string& message) = 0;
         void Close();
+        void Flush();
     };
 }
 

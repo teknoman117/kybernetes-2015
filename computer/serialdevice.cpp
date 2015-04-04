@@ -13,6 +13,7 @@ SerialDevice::SerialDevice(string path, const SerialPort::BaudRate baudRate)
     // Fire up a thread to process sentences from the device
     worker = thread([this] ()
     {
+        Flush();
         bool localKillWorker = false;
         while(!localKillWorker)
         {
@@ -62,4 +63,20 @@ void SerialDevice::Join()
             return;
     }
     worker.join();
+}
+
+void SerialDevice::Flush()
+{
+    // Dump all data
+    while (1)
+    {
+        try
+        {
+            serialPort.ReadByte(1);
+        }
+        catch (SerialPort::ReadTimeout)
+        {
+            break;
+        }
+    }
 }

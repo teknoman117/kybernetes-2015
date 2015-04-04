@@ -7,10 +7,10 @@ LDFLAGS=-O3 -lserial -lpthread
 SOURCES=utility.cpp serialdevice.cpp garmingps.cpp sensor_controller.cpp motion_controller.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
 
-%.o: %.cpp $(SOURCES)
+%.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-%.o: %.c $(SOURCES)
+%.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 all: robomagellan test

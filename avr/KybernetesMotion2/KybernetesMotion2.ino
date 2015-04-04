@@ -93,6 +93,7 @@ void Disarm(int now)
   steeringTarget = 0;
   throttleTarget = 0;
   throttleServo.writeMicroseconds(throttle_stop);
+  SendAlert("DISARMING");
 }
 
 void Arm()
@@ -102,6 +103,7 @@ void Arm()
   throttleTarget = 0;
   throttleServo.attach(throttleOutput);
   steeringServo.attach(steeringOutput);
+  SendAlert("ARMED");
 }
 
 void SendAlert(const char *m)
