@@ -31,8 +31,8 @@ namespace kybernetes
         request_future_t RequestDisarm();
         request_future_t RequestArmStatus();
         request_future_t RequestPing();
-        request_future_t RequestSetVelocity(short velocity);
-        request_future_t RequestSetSteering(short steering);
+        void             SetVelocity(short velocity);
+        void             SetSteering(short steering);
 
         // Register to receive motor controller alert handlers
         void RegisterAlertHandler(request_handler_t handler);

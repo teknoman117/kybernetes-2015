@@ -151,11 +151,11 @@ private:
         double error = state.rotation[2] - headingToObjective;
         double response = headingKp * error;
         short requestedSteering = clamp<short>((short) response, -steeringExtreme, steeringExtreme);
-        motionController->RequestSetSteering(requestedSteering);
+        motionController->SetSteering(requestedSteering);
 
         // Based on the distance to target, set the speed. in future apply a logistic function: 1 / (exp(-(distance - kHalfspeedistance)) + 1)
         short requestedVelocity = (distanceToObjective > closeDistanceThreshold) ? farSpeed : nearSpeed;
-        motionController->RequestSetVelocity(requestedVelocity);
+        motionController->SetVelocity(requestedVelocity);
     }
 
     // Called when the motion controller posts an alert

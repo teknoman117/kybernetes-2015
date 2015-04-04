@@ -11,8 +11,8 @@
 using namespace kybernetes;
 using namespace std;
 
-static const string commandNames[6] = {"ARM", "DISARM", "ARMSTAT", "PING", "VELOCITY", "STEER"};
-static const size_t commandNamesLength = 6;
+static const string commandNames[4] = {"ARM", "DISARM", "ARMSTAT", "PING"};
+static const size_t commandNamesLength = 4;
 
 // Open the GPS
 MotionController::MotionController(std::string path, const SerialPort::BaudRate baudRate)
@@ -169,42 +169,20 @@ MotionController::request_future_t MotionController::RequestPing()
     return r.first->second.get_future();
 }
 
-MotionController::request_future_t MotionController::RequestSetVelocity(short velocity)
+void MotionController::SetVelocity(short velocity)
 {
-    // Push out a arming request command
-    int code = rand() % 32;
-    pair<std::map<std::pair<int, std::string>, std::promise<std::string> >::iterator, bool> r;
-    {
-        lock_guard<mutex> lock(requestsMutex);
-        r = requests.insert(make_pair(make_pair(code, string("VELOCITY")), std::move(promise<string>())));
-    }
-
     // Push out the command
     stringstream stream;
-    stream << "VELOCITY:" << velocity << ";" << code << "\r\n";
+    stream << "VELOCITY:" << velocity << ";42" << "\r\n";
     serialPort.Write(stream.str());
-
-    // Return the future
-    return r.first->second.get_future();
 }
 
-MotionController::request_future_t MotionController::RequestSetSteering(short steering)
+void MotionController::SetSteering(short steering)
 {
-    // Push out a arming request command
-    int code = rand() % 32;
-    pair<std::map<std::pair<int, std::string>, std::promise<std::string> >::iterator, bool> r;
-    {
-        lock_guard<mutex> lock(requestsMutex);
-        r = requests.insert(make_pair(make_pair(code, string("STEER")), std::move(promise<string>())));
-    }
-
     // Push out the command
     stringstream stream;
-    stream << "STEER:" << steering << ";" << code << "\r\n";
+    stream << "STEER:" << steering << ";42" << "\r\n";
     serialPort.Write(stream.str());
-
-    // Return the future
-    return r.first->second.get_future();
 }
 
 // Close the serial device
