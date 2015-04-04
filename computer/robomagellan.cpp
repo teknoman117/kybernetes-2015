@@ -1,5 +1,6 @@
 #include <iostream>
-
+#include <fstream>
+#include <iomanip>
 #include <unistd.h>
 #include <ctime>
 #include <csignal>
@@ -7,6 +8,8 @@
 #include <mutex>
 #include <future>
 #include <chrono>
+#include <list>
+#include <algorithm>
 
 #include "kybernetes.hpp"
 #include "utility.hpp"
@@ -25,9 +28,47 @@ const string kMotionControllerStateKilled = "KILLED";
 
 class Application
 {
-    GarminGPS        *gps;
-    SensorController *sensorController;
-    MotionController *motionController;
+public:
+    // Waypoint along the goal path
+    struct Waypoint
+    {
+        GarminGPS::State coordinate;
+        bool             isCone;
+    };
+
+    // Load the goal manifest from a file
+    static void LoadFromFile(string path, list<Waypoint>& waypoints)
+    {
+        // Load the coordinates from the manifest file
+        std::ifstream manifest(path);
+        waypoints.clear();
+        while(!manifest.eof())
+        {
+            // Load the coordinate from the file
+            Waypoint point;
+            manifest >> point.coordinate.latitude;
+            manifest >> point.coordinate.longitude;
+            manifest >> point.isCone;
+
+            // Check if the coordinate is valid
+            if(manifest.eof()) break;
+
+            // Otherwise store the coordinate
+            waypoints.push_back(point);
+        }
+        manifest.close();
+    }
+
+private:
+    GarminGPS                *gps;
+    SensorController         *sensorController;
+    MotionController         *motionController;
+
+    // Route information
+    list<Waypoint>&           route;
+    list<Waypoint>::iterator  currentObjective;
+    volatile double           headingToObjective;
+    volatile double           distanceToObjective;
 
     // Possible arming states
     typedef enum _arming_state : unsigned char
@@ -46,9 +87,6 @@ class Application
     // Called when the GPS has been updated
     void GarminGPSHandler (GarminGPS::State& state)
     {
-        // Print out the location
-        //cout << "location = " << state.latitude << "," << state.longitude << ";" << state.altitude << "m @ " << asctime(localtime((time_t*)&state.timestamp));
-
         // Compute
     }
 
@@ -103,8 +141,6 @@ class Application
                         motionState = Armed;
                     else if(stateStr == kMotionControllerStateDisarming)
                         motionState = Disarming;
-
-                    cout << "Upstart State = " << stateStr << endl;
                 }
             }
 
@@ -125,8 +161,8 @@ class Application
     }
 
 public:
-    Application()
-        : motionState(Unknown)
+    Application(list<Waypoint>& route)
+        : route(route), motionState(Unknown)
     {
         // Initialize the GPS
         auto gpsCallback = bind(&Application::GarminGPSHandler, this, std::placeholders::_1);
@@ -153,8 +189,12 @@ public:
 
     void Close()
     {
-        // TODO - do stuff to shutdown robot
+        // Shutdown the robot
+        cout << "INFO: Disarming" << endl;
+        motionController->RequestDisarm().wait();
 
+        // Kill off our sensors
+        cout << "INFO: Shutting Down" << endl;
         gps->Close();
         sensorController->Close();
         motionController->Close();
@@ -166,16 +206,42 @@ static Application *application;
 void killHandler(int signal)
 {
     // Just close
-    cout << "---- Termination Requested ----" << endl;
+    cout << "INFO: Termination Requested" << endl;
     application->Close();
 }
 
 int main (int argc, char **argv)
 {
+    // Verify parameter count
+    if(argc < 2)
+    {
+        cerr << "Usage: " << argv[0] << " <path to waypoint list>" << endl;
+        return 1;
+    }
+
     // Process any input path information
     signal(SIGINT, killHandler);
 
-    application = new Application();
+    // Load the objective from a file
+    list<Application::Waypoint> route;
+    Application::LoadFromFile(argv[1], route);
+    for_each(route.begin(), route.end(), [] (Application::Waypoint& waypoint)
+    {
+        cout << setprecision(10) << "Waypoint: ";
+        cout << setprecision(10) << waypoint.coordinate.latitude << ", ";
+        cout << setprecision(10) << waypoint.coordinate.longitude << ", ";
+        cout << setprecision(10) << "is cone = " << waypoint.isCone << endl;
+    });
+
+    // Verify
+    if(route.empty())
+    {
+        cerr << "No waypoints specified, exiting..." << endl;
+        return 1;
+    }
+
+    // Launch robomagellan
+    application = new Application(route);
     application->Join();
     return 0;
 }
