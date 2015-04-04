@@ -105,7 +105,7 @@ void Arm()
   steeringServo.attach(steeringOutput);
   SendAlert("ARMED");
 }
-
+ 
 void SendAlert(const char *m)
 {
   Serial.print("ALERT:");
@@ -247,6 +247,7 @@ void loop()
       {
         EnsureDisarmed();
         state = Killed;
+        SendAlert("KILLED");
       }
       odometer = 0;
     } 

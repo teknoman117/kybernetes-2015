@@ -55,25 +55,25 @@ class Application
     // Called when the Sensor controller has posted a packet
     void SensorControllerHandler (SensorController::State& state)
     {
-        // If the controller is disengaged
+        // Controller is disengaged but armable.  Attempt to do so.
         if(motionState == Idle)
         {
             // Submit a request to arm the controller
             future<string> request = motionController->RequestArm();
             request.wait();
             string result = request.get();
-            if(result != "OK")
+            if(result == "OK")
             {
-                cerr << "WARN: Failed to arm the controller" << endl;
-                return;
+                motionState = Armed;
             }
+            else return;
         }
 
         // If the state is killed do nothing
         else if(motionState != Armed)
             return;
 
-        std::cout << "Sonars = " << state.sonar[0] << ", " << state.sonar[1] << ", " << state.sonar[2] << std::endl;
+        //std::cout << "Sonars = " << state.sonar[0] << ", " << state.sonar[1] << ", " << state.sonar[2] << std::endl;
         //std::cout << "Bumpers = " << state.bumper[0] << ", " << state.bumper[1] << std::endl;
         //std::cout << "IMU = " << state.rotation[0] << ", " << state.rotation[1] << ", " << state.rotation[2] << std::endl;
     }
