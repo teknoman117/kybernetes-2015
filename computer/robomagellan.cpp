@@ -26,6 +26,19 @@ const string kMotionControllerStateDisarming = "DISARMING";
 const string kMotionControllerStateIdle = "IDLE";
 const string kMotionControllerStateKilled = "KILLED";
 
+// Navigation constants on speed and distance
+const double closeDistanceThreshold = 10.0;    // 10 meters
+const short  farSpeed = 125;
+const short  nearSpeed = 75;
+const double headingKp = (350.0 / 45.0);
+const short  steeringExtreme = 350;
+
+template<typename T>
+inline float clamp(T x, T a, T b)
+{
+    return x < a ? a : (x > b ? b : x);
+}
+
 class Application
 {
 public:
@@ -87,12 +100,26 @@ private:
     // Called when the GPS has been updated
     void GarminGPSHandler (GarminGPS::State& state)
     {
+        // If there are no more objective, dont do shit
+        if(currentObjective == route.end())
+            return;
+
         // Compute heading and distance to target
         headingToObjective = state.HeadingTo(currentObjective->coordinate);
         distanceToObjective = state.DistanceTo(currentObjective->coordinate);
 
-        // Log
-        cout << headingToObjective << " " << distanceToObjective << endl;
+        // If we are within the error distance of our target, choose the next objective
+        if(distanceToObjective <= state.precision)
+        {
+            // Is the current objective a cone (switch to visual guidance)
+
+
+            // Otherwise choose the next target
+            if(++currentObjective == route.end())
+            {
+                Close();
+            }
+        }
     }
 
     // Called when the Sensor controller has posted a packet
@@ -119,6 +146,16 @@ private:
         //std::cout << "Sonars = " << state.sonar[0] << ", " << state.sonar[1] << ", " << state.sonar[2] << std::endl;
         //std::cout << "Bumpers = " << state.bumper[0] << ", " << state.bumper[1] << std::endl;
         //std::cout << "IMU = " << state.rotation[0] << ", " << state.rotation[1] << ", " << state.rotation[2] << std::endl;
+
+        // Based on our current heading to target, set the direction
+        double error = state.rotation[2] - headingToObjective;
+        double response = headingKp * error;
+        short requestedSteering = clamp<short>((short) response, -steeringExtreme, steeringExtreme);
+        motionController->RequestSetSteering(requestedSteering);
+
+        // Based on the distance to target, set the speed. in future apply a logistic function: 1 / (exp(-(distance - kHalfspeedistance)) + 1)
+        short requestedVelocity = (distanceToObjective > closeDistanceThreshold) ? farSpeed : nearSpeed;
+        motionController->RequestSetVelocity(requestedVelocity);
     }
 
     // Called when the motion controller posts an alert
