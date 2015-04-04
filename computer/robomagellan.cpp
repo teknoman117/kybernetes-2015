@@ -28,15 +28,22 @@ const string kMotionControllerStateKilled = "KILLED";
 
 // Navigation constants on speed and distance
 const double closeDistanceThreshold = 10.0;    // 10 meters
-const short  farSpeed = 125;
-const short  nearSpeed = 75;
-const double headingKp = (350.0 / 45.0);
-const short  steeringExtreme = 350;
+const short  farSpeed = 65;
+const short  nearSpeed = 65;
+const double headingKp = (450.0 / 45.0);
+const short  steeringExtreme = 450;
 
 template<typename T>
-inline float clamp(T x, T a, T b)
+inline T clamp(T x, T a, T b)
 {
     return x < a ? a : (x > b ? b : x);
+}
+
+inline double fixheading(double heading)
+{
+    while(heading > 180.0) heading -= 360.0;
+    while(heading < -180.0) heading += 360.0;
+    return heading;
 }
 
 class Application
@@ -118,8 +125,14 @@ private:
             if(++currentObjective == route.end())
             {
                 Close();
+            } else
+            {
+                headingToObjective = state.HeadingTo(currentObjective->coordinate);
+                distanceToObjective = state.DistanceTo(currentObjective->coordinate);
             }
         }
+
+        cout << "Received GPS Packet @" << state.timestamp << " {" << distanceToObjective << ", " << headingToObjective << "}" << endl;
     }
 
     // Called when the Sensor controller has posted a packet
@@ -148,7 +161,7 @@ private:
         //std::cout << "IMU = " << state.rotation[0] << ", " << state.rotation[1] << ", " << state.rotation[2] << std::endl;
 
         // Based on our current heading to target, set the direction
-        double error = state.rotation[2] - headingToObjective;
+        double error = -fixheading(headingToObjective - state.rotation[2]);
         double response = headingKp * error;
         short requestedSteering = clamp<short>((short) response, -steeringExtreme, steeringExtreme);
         motionController->SetSteering(requestedSteering);
@@ -156,6 +169,9 @@ private:
         // Based on the distance to target, set the speed. in future apply a logistic function: 1 / (exp(-(distance - kHalfspeedistance)) + 1)
         short requestedVelocity = (distanceToObjective > closeDistanceThreshold) ? farSpeed : nearSpeed;
         motionController->SetVelocity(requestedVelocity);
+
+        cout << "Heading = " << state.rotation[2] << ", Error = " << error << ", response = " << requestedSteering << ", distance = " << distanceToObjective << endl;
+        //cout << "Sonars = {" << state.sonar[0] << ", " << state.sonar[1] << ", " << state.sonar[2] << "}" << endl;
     }
 
     // Called when the motion controller posts an alert
