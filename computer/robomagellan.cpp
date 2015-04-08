@@ -28,8 +28,8 @@ const string kMotionControllerStateKilled = "KILLED";
 
 // Navigation constants on speed and distance
 const double closeDistanceThreshold = 10.0;    // 10 meters
-const short  farSpeed = 65;
-const short  nearSpeed = 65;
+const short  farSpeed = 135;
+const short  nearSpeed = 70;
 const double headingKp = (450.0 / 45.0);
 const short  steeringExtreme = 450;
 

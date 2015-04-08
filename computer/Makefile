@@ -1,11 +1,11 @@
 CC=clang
 CXX=clang++
-CFLAGS=-std=c11 -O3 -g
-CXXFLAGS=-std=c++11 -O3 -g
-LDFLAGS=-O3 -lserial -lpthread
+CFLAGS=-std=c11 -O3 -g -march=armv7-a
+CXXFLAGS=-std=c++11 -O3 -g -march=armv7-a
+LDFLAGS=-O3 -lserial -lpthread -lopencv_core -lopencv_imgproc -march=armv7-a
 
-SOURCES=utility.cpp serialdevice.cpp garmingps.cpp sensor_controller.cpp motion_controller.cpp
-OBJECTS=$(SOURCES:.cpp=.o)
+SOURCES=utility.cpp serialdevice.cpp garmingps.cpp sensor_controller.cpp motion_controller.cpp uvccamera.cpp
+OBJECTS=$(SOURCES:.cpp=.o) yuv422_bithreshold.s
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
@@ -13,13 +13,19 @@ OBJECTS=$(SOURCES:.cpp=.o)
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-all: robomagellan test
+%.o: %.s
+	$(CC) -c -o $@ $<
+
+all: robomagellan blob_track_demo test
 
 robomagellan: $(OBJECTS) robomagellan.o
 	$(CXX) $(LDFLAGS) -o robomagellan $(OBJECTS) robomagellan.o
+
+blob_track_demo: $(OBJECTS) blob_track_demo.o
+	$(CXX) $(LDFLAGS) -o blob_track_demo $(OBJECTS) blob_track_demo.o /usr/local/lib/libopencvblobslib.a
 
 test: $(OBJECTS) test.o
 	$(CXX) $(LDFLAGS) -o test $(OBJECTS) test.o
 
 clean:
-	rm -rf robomagellan test *.o
+	rm -rf robomagellan blob_track_demo test *.o
