@@ -18,6 +18,7 @@
 #include "motion_controller.hpp"
 
 using namespace kybernetes;
+using namespace kybernetes::constants;
 using namespace std;
 
 const string kMotionControllerAlertHeartbeat = "HEARTBEAT";

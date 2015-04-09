@@ -1,11 +1,14 @@
 CC=clang
 CXX=clang++
-CFLAGS=-std=c11 -O3 -g -march=armv7-a
-CXXFLAGS=-std=c++11 -O3 -g -march=armv7-a
-LDFLAGS=-O3 -lserial -lpthread -lopencv_core -lopencv_imgproc -march=armv7-a
+#CFLAGS=-std=c11 -O3 -g -march=armv7-a
+#CXXFLAGS=-std=c++11 -O3 -g -march=armv7-a
+#LDFLAGS=-O3 -lserial -lpthread -lopencv_core -lopencv_imgproc -march=armv7-a
+CFLAGS=-std=c11 -O3 -fblocks -g
+CXXFLAGS=-std=c++11 -O3 -fblocks -g
+LDFLAGS=-O3 -fblocks -ldispatch -lserial -lpthread -lopencv_core -lopencv_imgproc
 
-SOURCES=utility.cpp serialdevice.cpp garmingps.cpp sensor_controller.cpp motion_controller.cpp uvccamera.cpp
-OBJECTS=$(SOURCES:.cpp=.o) yuv422_bithreshold.s
+SOURCES=serialport.cpp serialdispatchdevice.cpp utility.cpp serialdevice.cpp garmingps.cpp sensor_controller.cpp motion_controller.cpp uvccamera.cpp
+OBJECTS=$(SOURCES:.cpp=.o)
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<

@@ -6,6 +6,7 @@
 #include <ctime>
 
 using namespace kybernetes;
+using namespace kybernetes::constants;
 using namespace std;
 
 // Earth properties
