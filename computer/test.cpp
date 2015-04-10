@@ -26,6 +26,7 @@ public:
     }
     void ApplicationWillTerminate()
     {
+        cout << "Termination Requested" << endl;
         delete gps;
     }
 };

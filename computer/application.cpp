@@ -1,4 +1,6 @@
 #include "application.hpp"
+#include <csignal>
+#include <cstdlib>
 
 namespace kybernetes
 {
@@ -10,6 +12,7 @@ namespace kybernetes
         : delegate(delegate)
     {
         // Register signal handlers
+        signal(SIGINT, &Application::SignalTerminateApplication);
 
         // Assuming everything went well
         dispatch_async(dispatch_get_main_queue(), ^
@@ -21,5 +24,16 @@ namespace kybernetes
     Application* Application::Instance()
     {
         return instance;
+    }
+
+    void Application::SignalTerminateApplication(int)
+    {
+        Application::Instance()->HandleTerminateApplication();
+    }
+
+    void Application::HandleTerminateApplication()
+    {
+        delegate->ApplicationWillTerminate();
+        exit(0);
     }
 }

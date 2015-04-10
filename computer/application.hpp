@@ -18,15 +18,19 @@ namespace kybernetes
         };
 
     private:
+        // Kill the application
+        static void SignalTerminateApplication(int);
+
         // Shared instance of the application
         static Application *instance;
         Delegate           *delegate;
 
         // Constructor of the application
         Application(int argc, char** argv, Delegate *delegate);
+        void HandleTerminateApplication();
 
     public:
-        Application* Instance();
+        static Application* Instance();
 
         // Run this application with a delegate class
         template<class T>
