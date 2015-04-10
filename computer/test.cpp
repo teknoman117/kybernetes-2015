@@ -3,6 +3,7 @@
 #include <chrono>
 
 #include "kybernetes.hpp"
+#include "application.hpp"
 #include "garmingps.hpp"
 
 using namespace std;
@@ -10,15 +11,12 @@ using namespace kybernetes;
 using namespace kybernetes::sensor;
 using namespace kybernetes::constants;
 
-class Application;
-static Application *instance;
-
-class Application
+class TestApplication : public Application::Delegate
 {
     GarminGPS *gps;
 
 public:
-    Application()
+    void ApplicationDidLaunch(Application *application, int argc, char **argv)
     {
         gps = new GarminGPS(GPSPath, dispatch_get_main_queue());
         gps->SetHandler([] (const GarminGPS::State& state)
@@ -26,19 +24,14 @@ public:
             cout << "Received GPS Packet @ " << asctime(localtime((time_t *) &state.timestamp)) << endl;
         });
     }
-
-    static void run()
+    void ApplicationWillTerminate()
     {
-        dispatch_async(dispatch_get_main_queue(), ^
-        {
-            instance = new Application();
-        });
-        dispatch_main();
+        delete gps;
     }
 };
 
 int main (int argc, char** argv)
 {
-    Application::run();
+    Application::Run<TestApplication>(argc, argv);
     return 0;
 }

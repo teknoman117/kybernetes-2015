@@ -7,7 +7,7 @@ CFLAGS=-std=c11 -O3 -fblocks -g
 CXXFLAGS=-std=c++11 -O3 -fblocks -g
 LDFLAGS=-O3 -fblocks -ldispatch -lserial -lpthread -lopencv_core -lopencv_imgproc
 
-SOURCES=serialport.cpp serialdispatchdevice.cpp utility.cpp serialdevice.cpp garmingps.cpp sensor_controller.cpp motion_controller.cpp uvccamera.cpp
+SOURCES=application.cpp serialport.cpp serialdispatchdevice.cpp utility.cpp serialdevice.cpp garmingps.cpp sensor_controller.cpp motion_controller.cpp uvccamera.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
 
 %.o: %.cpp
