@@ -18,6 +18,7 @@
 #include "motion_controller.hpp"
 
 using namespace kybernetes;
+using namespace kybernetes::sensor;
 using namespace kybernetes::constants;
 using namespace std;
 
@@ -225,8 +226,8 @@ public:
     {
         // Initialize the GPS
         auto gpsCallback = bind(&Application::GarminGPSHandler, this, std::placeholders::_1);
-        gps = new GarminGPS(GPSPath);
-        gps->RegisterHandler(gpsCallback);
+        gps = new GarminGPS(GPSPath, dispatch_get_main_queue());
+        gps->SetHandler(gpsCallback);
 
         // Initialize the Sensor controller
         auto sensorCallback = bind(&Application::SensorControllerHandler, this, std::placeholders::_1);
@@ -241,7 +242,6 @@ public:
 
     void Join()
     {
-        gps->Join();
         sensorController->Join();
         motionController->Join();
     }
@@ -254,7 +254,7 @@ public:
 
         // Kill off our sensors
         cout << "INFO: Shutting Down" << endl;
-        gps->Close();
+        delete gps;
         sensorController->Close();
         motionController->Close();
     }

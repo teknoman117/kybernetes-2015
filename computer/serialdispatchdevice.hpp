@@ -27,7 +27,8 @@ namespace kybernetes
         public:
             SerialDispatchDevice(const std::string& path, dispatch_queue_t queue, uint32_t baudrate, SerialPort::DataBits dataBits, SerialPort::Parity parity, SerialPort::StopBits stopBits, std::function<void (int)> callback);
             SerialDispatchDevice(const std::string& path, dispatch_queue_t queue, uint32_t baudrate, std::function<void (int)> callback);
-
+            ~SerialDispatchDevice();
+            
             void SetHandler(handler_t handler);
         };
     }

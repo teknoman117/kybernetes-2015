@@ -3,34 +3,27 @@
 #include <chrono>
 
 #include "kybernetes.hpp"
-#include "serialdispatchdevice.hpp"
+#include "garmingps.hpp"
 
 using namespace std;
 using namespace kybernetes;
-using namespace kybernetes::io;
+using namespace kybernetes::sensor;
 using namespace kybernetes::constants;
 
 class Application;
 static Application *instance;
+
 class Application
 {
-    SerialDispatchDevice *gpsDevice;
+    GarminGPS *gps;
 
 public:
     Application()
     {
-        gpsDevice = new SerialDispatchDevice(GPSPath, dispatch_get_main_queue(), 9600, [] (int error)
+        gps = new GarminGPS(GPSPath, dispatch_get_main_queue());
+        gps->SetHandler([] (const GarminGPS::State& state)
         {
-            if(error)
-            {
-                // Do something about it
-                cerr << "Error: " << error << endl;
-                exit(1);
-            }
-        });
-        gpsDevice->SetHandler([] (const string& message)
-        {
-            cout << "Received: " << message;
+            cout << "Received GPS Packet @ " << asctime(localtime((time_t *) &state.timestamp)) << endl;
         });
     }
 
@@ -43,7 +36,6 @@ public:
         dispatch_main();
     }
 };
-
 
 int main (int argc, char** argv)
 {

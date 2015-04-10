@@ -73,6 +73,16 @@ namespace kybernetes
         {
         }
 
+        SerialDispatchDevice::~SerialDispatchDevice()
+        {
+            // stop reading
+            if(serialPort->IsOpen())
+            {
+                dispatch_io_close(channel, DISPATCH_IO_STOP);
+            }
+            delete serialPort;
+        }
+
         void SerialDispatchDevice::SetHandler(SerialDispatchDevice::handler_t handler)
         {
             this->handler = handler;
