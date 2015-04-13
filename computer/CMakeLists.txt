@@ -31,3 +31,7 @@ add_library(kybernetes SHARED src/kybernetes/io/serialdispatchdevice.cpp
 # Link our library to boost
 target_link_libraries (kybernetes dispatch)
 target_link_libraries (kybernetes pthread)
+
+# Applications
+add_executable(garmingps_test src/test/garmingpstest.cpp)
+target_link_libraries(garmingps_test kybernetes)

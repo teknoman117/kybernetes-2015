@@ -2,14 +2,15 @@
 #include <thread>
 #include <chrono>
 
-#include "kybernetes.hpp"
-#include "application.hpp"
-#include "garmingps.hpp"
+#include <kybernetes/constants/constants.hpp>
+#include <kybernetes/utility/application.hpp>
+#include <kybernetes/sensor/garmingps.hpp>
 
 using namespace std;
-using namespace kybernetes;
+
 using namespace kybernetes::sensor;
 using namespace kybernetes::constants;
+using namespace kybernetes::utility;
 
 class TestApplication : public Application::Delegate
 {
