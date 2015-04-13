@@ -1,6 +1,7 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <iomanip>
 
 #include <kybernetes/constants/constants.hpp>
 #include <kybernetes/utility/application.hpp>
@@ -23,9 +24,9 @@ public:
         gps->SetHandler([] (const GarminGPS::State& state)
         {
             cout << "Received GPS Packet @ " << asctime(localtime((time_t *) &state.timestamp));
-            cout << "    Latitude  = " << state.latitude << endl;
-            cout << "    Longitude = " << state.longitude << endl;
-            cout << "    Altitude  = " << state.altitude << endl;
+            cout << setprecision(10) << "    Latitude  = " << state.latitude << " degrees" << endl;
+            cout << setprecision(10) <<  "    Longitude = " << state.longitude << " degrees" << endl;
+            cout << setprecision(10) <<  "    Altitude  = " << state.altitude << " meters" << endl;
             cout << endl;
         });
     }
