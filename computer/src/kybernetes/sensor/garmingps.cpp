@@ -28,7 +28,7 @@ namespace kybernetes
             });
 
             // Register the handler which will do the processing for the
-            device->SetHandler([this] (const string message)
+            device->SetHandler([this] (const string& message)
             {
                 // Only continue if the sentence is valid
                 if(!IsValidGPSSentence(message))
