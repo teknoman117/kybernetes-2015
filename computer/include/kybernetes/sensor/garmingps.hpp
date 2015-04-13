@@ -1,7 +1,7 @@
 #ifndef __GARMIN_GPS_HPP__
 #define __GARMIN_GPS_HPP__
 
-#include "serialdispatchdevice.hpp"
+#include <kybernetes/io/serialdispatchdevice.hpp>
 #include <cstdint>
 
 namespace kybernetes

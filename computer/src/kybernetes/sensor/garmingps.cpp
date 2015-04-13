@@ -1,5 +1,5 @@
-#include "garmingps.hpp"
-#include "kybernetes.hpp"
+#include <kybernetes/sensor/garmingps.hpp>
+#include <kybernetes/constants/constants.hpp>
 
 #include <algorithm>
 #include <cmath>

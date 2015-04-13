@@ -1,8 +1,6 @@
 #ifndef __SERIALPORT_HPP__
 #define __SERIALPORT_HPP__
 
-#include "kybernetes.hpp"
-
 #include <cstdint>
 #include <functional>
 #include <string>

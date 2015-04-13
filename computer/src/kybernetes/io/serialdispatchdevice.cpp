@@ -1,4 +1,4 @@
-#include "serialdispatchdevice.hpp"
+#include <kybernetes/io/serialdispatchdevice.hpp>
 #include <errno.h>
 
 using namespace std;
