@@ -22,7 +22,11 @@ public:
         gps = new GarminGPS(GPSPath, dispatch_get_main_queue());
         gps->SetHandler([] (const GarminGPS::State& state)
         {
-            cout << "Received GPS Packet @ " << asctime(localtime((time_t *) &state.timestamp)) << endl;
+            cout << "Received GPS Packet @ " << asctime(localtime((time_t *) &state.timestamp));
+            cout << "    Latitude  = " << state.latitude << endl;
+            cout << "    Longitude = " << state.longitude << endl;
+            cout << "    Altitude  = " << state.altitude << endl;
+            cout << endl;
         });
     }
     void ApplicationWillTerminate()
