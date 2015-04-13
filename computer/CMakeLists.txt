@@ -26,6 +26,7 @@ add_library(kybernetes SHARED src/kybernetes/io/serialdispatchdevice.cpp
                               src/kybernetes/sensor/garmingps.cpp
                               src/kybernetes/utility/application.cpp
                               src/kybernetes/utility/utility.cpp
+                              src/kybernetes/controller/sensor_controller.cpp
            )
 
 # Link our library to boost
@@ -35,3 +36,6 @@ target_link_libraries (kybernetes pthread)
 # Applications
 add_executable(garmingps_test src/test/garmingpstest.cpp)
 target_link_libraries(garmingps_test kybernetes)
+
+add_executable(sensor_test src/test/sensortest.cpp)
+target_link_libraries(sensor_test kybernetes)
