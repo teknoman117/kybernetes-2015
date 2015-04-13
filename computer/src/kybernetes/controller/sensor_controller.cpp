@@ -77,19 +77,19 @@ namespace kybernetes
             delete device;
         }
 
-        void SensorController::SetSonarHandler(std::function<void (SensorController::SonarState&)> handler)
+        void SensorController::SetSonarHandler(std::function<void (SensorController::SonarState&)>&& handler)
         {
-            sonarCallback = handler;
+            sonarCallback = move(handler);
         }
 
-        void SensorController::SetIMUHandler(std::function<void (SensorController::IMUState&)> handler)
+        void SensorController::SetIMUHandler(std::function<void (SensorController::IMUState&)>&& handler)
         {
-            imuCallback = handler;
+            imuCallback = move(handler);
         }
 
-        void SensorController::SetBumperHandler(std::function<void (SensorController::BumperState&)> handler)
+        void SensorController::SetBumperHandler(std::function<void (SensorController::BumperState&)>&& handler)
         {
-            bumperCallback = handler;
+            bumperCallback = move(handler);
         }
     }
 }

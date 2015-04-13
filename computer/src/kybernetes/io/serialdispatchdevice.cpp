@@ -83,9 +83,9 @@ namespace kybernetes
             delete serialPort;
         }
 
-        void SerialDispatchDevice::SetHandler(SerialDispatchDevice::handler_t handler)
+        void SerialDispatchDevice::SetHandler(SerialDispatchDevice::handler_t&& handler)
         {
-            this->handler = handler;
+            this->handler = move(handler);
         }
     }
 }

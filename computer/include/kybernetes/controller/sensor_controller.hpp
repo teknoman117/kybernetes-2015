@@ -96,9 +96,9 @@ namespace kybernetes
             SensorController(std::string path, dispatch_queue_t queue, const uint32_t baudrate = 57600);
             ~SensorController();
 
-            void SetSonarHandler(std::function<void (SensorController::SonarState&)> handler);
-            void SetIMUHandler(std::function<void (SensorController::IMUState&)> handler);
-            void SetBumperHandler(std::function<void (SensorController::BumperState&)> handler);
+            void SetSonarHandler(std::function<void (SensorController::SonarState&)>&& handler);
+            void SetIMUHandler(std::function<void (SensorController::IMUState&)>&& handler);
+            void SetBumperHandler(std::function<void (SensorController::BumperState&)>&& handler);
         };
     }
 }

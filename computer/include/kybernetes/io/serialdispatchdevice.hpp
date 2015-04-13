@@ -29,7 +29,7 @@ namespace kybernetes
             SerialDispatchDevice(const std::string& path, dispatch_queue_t queue, uint32_t baudrate, std::function<void (int)> callback);
             ~SerialDispatchDevice();
 
-            void SetHandler(handler_t handler);
+            void SetHandler(handler_t&& handler);
         };
     }
 }
