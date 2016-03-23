@@ -24,7 +24,7 @@ public:
         char option;
         bool monitorSonars = false, monitorIMU = false, monitorBumpers = false;
         string path = SensorControllerPath;
-        while ((option = getopt (argc, argv, "p:sib")) != -1)
+        while ((option = getopt (argc, argv, "p:sib")) != 255)
         switch (option)
         {
             case 'p':
