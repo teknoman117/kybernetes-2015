@@ -2,6 +2,7 @@
 #include <thread>
 #include <chrono>
 #include <iomanip>
+#include <memory>
 
 #include <kybernetes/constants/constants.hpp>
 #include <kybernetes/utility/application.hpp>
@@ -15,12 +16,12 @@ using namespace kybernetes::utility;
 
 class TestApplication : public Application::Delegate
 {
-    GarminGPS *gps;
+    std::unique_ptr<GarminGPS> gps;
 
 public:
     void ApplicationDidLaunch(Application *application, int argc, char **argv)
     {
-        gps = new GarminGPS(GPSPath, dispatch_get_main_queue());
+        gps = std::make_unique<GarminGPS>(GPSPath, dispatch_get_main_queue());
         gps->SetHandler([] (const GarminGPS::State& state)
         {
             cout << "Received GPS Packet @ " << asctime(localtime((time_t *) &state.timestamp));
@@ -33,7 +34,6 @@ public:
     void ApplicationWillTerminate()
     {
         cout << "Termination Requested" << endl;
-        delete gps;
     }
 };
 

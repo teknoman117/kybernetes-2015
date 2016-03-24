@@ -2,16 +2,19 @@
 #include <csignal>
 #include <cstdlib>
 
+using namespace std;
+
 namespace kybernetes
 {
     namespace utility
     {
         // Dispatch application wrapper
-        Application* Application::instance;
+        unique_ptr<Application> Application::instance;
+        Application::Delegate::~Delegate() {}
 
         // Constructor of the application
-        Application::Application(int argc, char** argv, Delegate *delegate)
-            : delegate(delegate)
+        Application::Application(int argc, char** argv, unique_ptr<Delegate> delegate_, Application::ctor_cookie)
+            : delegate(move(delegate_))
         {
             // Register signal handlers
             signal(SIGINT, &Application::SignalTerminateApplication);
@@ -25,7 +28,7 @@ namespace kybernetes
 
         Application* Application::Instance()
         {
-            return instance;
+            return instance.get();
         }
 
         void Application::SignalTerminateApplication(int)
@@ -35,8 +38,11 @@ namespace kybernetes
 
         void Application::HandleTerminateApplication()
         {
-            delegate->ApplicationWillTerminate();
-            exit(0);
+            dispatch_async(dispatch_get_main_queue(), ^
+            {
+                delegate->ApplicationWillTerminate();
+                exit(0);
+            });
         }
     }
 }

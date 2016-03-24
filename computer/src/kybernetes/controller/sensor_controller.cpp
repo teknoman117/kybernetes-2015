@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <ctime>
+#include <iostream>
 
 using namespace std;
 
@@ -74,6 +75,7 @@ namespace kybernetes
 
         SensorController::~SensorController()
         {
+            std::cout << "closing sensor controller" << std::endl;
             delete device;
         }
 

@@ -2,6 +2,7 @@
 #include <thread>
 #include <chrono>
 #include <iomanip>
+#include <memory>
 
 #include <kybernetes/constants/constants.hpp>
 #include <kybernetes/utility/application.hpp>
@@ -15,7 +16,7 @@ using namespace kybernetes::utility;
 
 class SensorTestApplication : public Application::Delegate
 {
-    SensorController *sensorController;
+    unique_ptr<SensorController> sensorController;
 
 public:
     void ApplicationDidLaunch(Application *application, int argc, char **argv)
@@ -50,7 +51,7 @@ public:
         };
 
         // Open the sensor controller
-        sensorController = new SensorController(path, dispatch_get_main_queue());
+        sensorController = make_unique<SensorController>(path, dispatch_get_main_queue());
 
         // Register handlers
         if(monitorSonars)
@@ -85,7 +86,6 @@ public:
     void ApplicationWillTerminate()
     {
         cout << "Termination Requested" << endl;
-        delete sensorController;
     }
 };
 
