@@ -19,7 +19,7 @@ namespace kybernetes
         GarminGPS::GarminGPS(std::string path, dispatch_queue_t queue, const uint32_t baudrate)
         {
             // Open the GarminGPS device
-            device = new io::SerialDispatchDevice(path, queue, baudrate, [] (int error)
+            device = make_unique<io::SerialDispatchDevice>(path, queue, baudrate, [] (int error)
             {
                 if(error)
                 {
@@ -53,7 +53,6 @@ namespace kybernetes
                 currentTime.tm_sec = atoi(secondString);
                 time_t t = timegm(&currentTime);
                 state.timestamp = (int32_t) t;
-                //cout << asctime(localtime(&t)) << endl;
 
                 // Get the fix status
                 state.status = (State::FixStatus) message[30];
@@ -103,11 +102,9 @@ namespace kybernetes
                     handler(state);
                 }
             });
-        }
 
-        GarminGPS::~GarminGPS()
-        {
-            delete device;
+            // Set the data size hints
+            device->SetDataSizeHints(1, 57);
         }
 
         // Verify that a packet from the GPS is valid

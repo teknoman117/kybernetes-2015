@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <cmath>
 #include <ctime>
-#include <iostream>
 
 using namespace std;
 
@@ -16,7 +15,7 @@ namespace kybernetes
         SensorController::SensorController(std::string path, dispatch_queue_t queue, const uint32_t baudrate)
         {
             // Open the sensor controller device
-            device = new io::SerialDispatchDevice(path, queue, baudrate, [] (int error)
+            device = make_unique<io::SerialDispatchDevice>(path, queue, baudrate, [] (int error)
             {
                 if(error)
                 {
@@ -71,12 +70,6 @@ namespace kybernetes
                         bumperCallback(state);
                 }
             });
-        }
-
-        SensorController::~SensorController()
-        {
-            std::cout << "closing sensor controller" << std::endl;
-            delete device;
         }
 
         void SensorController::SetSonarHandler(std::function<void (SensorController::SonarState&)>&& handler)

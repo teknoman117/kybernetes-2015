@@ -11,7 +11,7 @@ namespace kybernetes
             : queue(queue)
         {
             // Open the serial port
-            serialPort = new SerialPort(path, baudrate, dataBits, parity, stopBits, [&queue, &callback] (SerialPort::Error error)
+            serialPort = make_unique<SerialPort>(path, baudrate, dataBits, parity, stopBits, [&queue, &callback] (SerialPort::Error error)
             {
                 // If the port failed to open
                 if(error != SerialPort::Success)
@@ -34,7 +34,6 @@ namespace kybernetes
                 }
             });
 
-            // Don't bug user unless we've received at least a js_Event object
             dispatch_io_set_low_water(channel, 1);
             dispatch_io_set_high_water(channel, 57);
 
@@ -80,12 +79,18 @@ namespace kybernetes
             {
                 dispatch_io_close(channel, DISPATCH_IO_STOP);
             }
-            delete serialPort;
         }
 
         void SerialDispatchDevice::SetHandler(SerialDispatchDevice::handler_t&& handler)
         {
             this->handler = move(handler);
+        }
+        
+        void SerialDispatchDevice::SetDataSizeHints(size_t lowWater, size_t highWater)
+        {
+            // Don't bug user unless we've received at least a js_Event object
+            dispatch_io_set_low_water(channel, lowWater);
+            dispatch_io_set_high_water(channel, highWater);
         }
     }
 }

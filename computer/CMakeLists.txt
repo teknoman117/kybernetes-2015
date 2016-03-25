@@ -9,7 +9,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY lib)
 
 # Use the NEON fpu
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mfpu=neon -std=c11")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfpu=neon -std=c++11")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfpu=neon -std=c++14")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fblocks -std=c11 -g")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fblocks -std=c++14 -g")
 

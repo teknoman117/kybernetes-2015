@@ -8,16 +8,15 @@ namespace kybernetes
 {
     namespace utility
     {
-        // Dispatch application wrapper
-        unique_ptr<Application> Application::instance;
         Application::Delegate::~Delegate() {}
+        unique_ptr<Application> Application::instance;
 
         // Constructor of the application
         Application::Application(int argc, char** argv, unique_ptr<Delegate> delegate_, Application::ctor_cookie)
             : delegate(move(delegate_))
         {
-            // Register signal handlers
-            signal(SIGINT, &Application::SignalTerminateApplication);
+            // Register signal handlers for POSIX signals
+            signal(SIGINT, &Application::CatchPOSIXSignal);
 
             // Assuming everything went well
             dispatch_async(dispatch_get_main_queue(), ^
@@ -31,18 +30,27 @@ namespace kybernetes
             return instance.get();
         }
 
-        void Application::SignalTerminateApplication(int)
+        // POSIX Signal Handler (serves to redirect the signals into the application singleton)
+        void Application::CatchPOSIXSignal(int signalNumber)
         {
-            Application::Instance()->HandleTerminateApplication();
+            Application::Instance()->HandlePOSIXSignal(signalNumber);
         }
 
-        void Application::HandleTerminateApplication()
+        void Application::HandlePOSIXSignal(int signalNumber)
         {
-            dispatch_async(dispatch_get_main_queue(), ^
+            switch(signalNumber)
             {
-                delegate->ApplicationWillTerminate();
-                exit(0);
-            });
+                case SIGINT:
+                    dispatch_async(dispatch_get_main_queue(), ^
+                    {
+                        delegate->ApplicationWillTerminate();
+                        exit(0);
+                    });
+                    break;
+
+                default:
+                    break;
+            }
         }
     }
 }

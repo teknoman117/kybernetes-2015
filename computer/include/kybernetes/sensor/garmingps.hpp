@@ -3,6 +3,7 @@
 
 #include <kybernetes/io/serialdispatchdevice.hpp>
 #include <cstdint>
+#include <memory>
 
 namespace kybernetes
 {
@@ -44,11 +45,10 @@ namespace kybernetes
             static bool IsValidGPSSentence(const std::string& sentence);
 
             std::function<void (GarminGPS::State&)> handler;
-            io::SerialDispatchDevice *device;
+            std::unique_ptr<io::SerialDispatchDevice> device;
 
         public:
             GarminGPS(std::string path, dispatch_queue_t queue, const uint32_t baudrate = 9600);
-            ~GarminGPS();
 
             void SetHandler(std::function<void (GarminGPS::State&)> handler);
         };

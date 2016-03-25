@@ -6,6 +6,7 @@
 
 #include <functional>
 #include <string>
+#include <memory>
 
 namespace kybernetes
 {
@@ -18,11 +19,12 @@ namespace kybernetes
             typedef std::function<void (const std::string& message)> handler_t;
 
         private:
-            SerialPort       *serialPort;
-            dispatch_io_t     channel;
-            dispatch_queue_t  queue;
-            handler_t         handler;
-            std::string       buffer;
+            std::unique_ptr<SerialPort> serialPort;
+            dispatch_io_t               channel;
+            dispatch_queue_t            queue;
+            handler_t                   handler;
+            
+            std::string                 buffer;
 
         public:
             SerialDispatchDevice(const std::string& path, dispatch_queue_t queue, uint32_t baudrate, SerialPort::DataBits dataBits, SerialPort::Parity parity, SerialPort::StopBits stopBits, std::function<void (int)> callback);
@@ -30,6 +32,7 @@ namespace kybernetes
             ~SerialDispatchDevice();
 
             void SetHandler(handler_t&& handler);
+            void SetDataSizeHints(size_t lowWater, size_t highWater);
         };
     }
 }

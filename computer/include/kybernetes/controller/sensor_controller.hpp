@@ -2,6 +2,7 @@
 #define __SENSOR_CONTROLLER_HPP__
 
 #include <kybernetes/io/serialdispatchdevice.hpp>
+#include <memory>
 
 namespace kybernetes
 {
@@ -86,7 +87,7 @@ namespace kybernetes
             };
 
         private:
-            io::SerialDispatchDevice *device;
+            std::unique_ptr<io::SerialDispatchDevice> device;
 
             std::function<void (SensorController::SonarState&)>  sonarCallback;
             std::function<void (SensorController::IMUState&)>    imuCallback;
@@ -94,7 +95,6 @@ namespace kybernetes
 
         public:
             SensorController(std::string path, dispatch_queue_t queue, const uint32_t baudrate = 57600);
-            ~SensorController();
 
             void SetSonarHandler(std::function<void (SensorController::SonarState&)>&& handler);
             void SetIMUHandler(std::function<void (SensorController::IMUState&)>&& handler);

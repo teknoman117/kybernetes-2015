@@ -25,12 +25,7 @@ public:
 
 int main (int argc, char** argv)
 {
-    unique_ptr<Application::Delegate> b(new TestApplication);
-
-    //Application::Run<TestApplication>(argc, argv);
-    b->ApplicationWillTerminate();
-
-    b.reset(nullptr);
+    Application::Run<TestApplication>(argc, argv);
     return 0;
 }
 
