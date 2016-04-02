@@ -8,30 +8,32 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY lib)
 
 # Use the NEON fpu
-#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mfpu=neon -std=c11")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfpu=neon -std=c++14")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fblocks -std=c11 -g")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fblocks -std=c++14 -g")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fblocks -march=native -mfpu=neon -std=c11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fblocks -march=native -mfpu=neon -std=c++14")
 
 # Tell CMAKE to invoke gcc on assembly sources
-#set_property(SOURCE src/kybernetes/cv/yuv422_bithreshold.s PROPERTY LANGUAGE C)
+set_property(SOURCE src/kybernetes/cv/yuv422_bithreshold.s PROPERTY LANGUAGE C)
 
 # Include path
 include_directories (${PROJECT_SOURCE_DIR}/include)
 
 # Create the drivers library for Kybernetes, all applications will link
 # with this shared library
-add_library(kybernetes STATIC src/kybernetes/io/serialdispatchdevice.cpp
+add_library(kybernetes SHARED src/kybernetes/io/serialdispatchdevice.cpp
                               src/kybernetes/io/serialport.cpp
                               src/kybernetes/sensor/garmingps.cpp
                               src/kybernetes/utility/application.cpp
                               src/kybernetes/utility/utility.cpp
                               src/kybernetes/controller/sensor_controller.cpp
+                              src/kybernetes/cv/yuv422_bithreshold.s
            )
 
 # Link our library to boost
 target_link_libraries (kybernetes dispatch)
 target_link_libraries (kybernetes pthread)
+target_link_libraries (kybernetes opencv_core)
+target_link_libraries (kybernetes opencv_imgproc)
+target_link_libraries (kybernetes opencv_objdetect)
 
 # Applications
 add_executable(app_test src/test/apptest.cpp)

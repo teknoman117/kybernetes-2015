@@ -20,7 +20,7 @@
 #ifndef _kybernetes_cv_cv_h_
 #define _kybernetes_cv_cv_h_
 
-#include <stdint.h>
+#include <cstdint>
 
 // Kybernetes namespace
 namespace kybernetes
