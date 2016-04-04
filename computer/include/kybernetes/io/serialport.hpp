@@ -54,8 +54,8 @@ namespace kybernetes
             int         descriptor;
 
         public:
-            SerialPort(const std::string& path, uint32_t baudrate, std::function<void (Error)> callback);
-            SerialPort(const std::string& path, uint32_t baudrate, DataBits dataBits, Parity parity, StopBits stopBits, std::function<void (Error)> callback);
+            SerialPort(const std::string& path, uint32_t baudrate, const std::function<void (SerialPort *, Error)>& callback);
+            SerialPort(const std::string& path, uint32_t baudrate, DataBits dataBits, Parity parity, StopBits stopBits, const std::function<void (SerialPort *, Error)>& callback);
             ~SerialPort();
 
             // Get the handle of the serial port
@@ -72,6 +72,10 @@ namespace kybernetes
 
             // Close the serialport
             void Close();
+
+            // Data read/write operations
+            ssize_t Write(const void *data, size_t n);
+            ssize_t Read(void *data, size_t n);
         };
     }
 };

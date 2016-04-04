@@ -4,22 +4,23 @@
 #include <algorithm>
 #include <cmath>
 #include <ctime>
+#include <sstream>
+//#include <iostream>
 
 using namespace std;
 
-namespace
+namespace 
 {
-	static const string commandNames[4]    = {"ARM", "DISARM", "ARMSTAT", "PING"};
-	static const size_t commandNamesLength = 4;
+    static const string statusNames[8] = {"ARMED", "DISARMING", "IDLE", "KILLED", "HEARTBEAT", "TIMEOUT", "RESET", "READY"};
+    static const size_t statusNamesLength = 8;
 }
-
 
 namespace kybernetes
 {
     namespace controller
     {
         MotionController::MotionController(const std::string& path, dispatch_queue_t queue, uint32_t baudrate)
-        	: queue(queue)
+            : queue(queue)
         {
             // Open the sensor controller device
             device = make_unique<io::SerialDispatchDevice>(path, queue, baudrate, [] (int error)
@@ -33,86 +34,181 @@ namespace kybernetes
             // Register the handler for receipt of a message
             device->SetHandler([this] (const string& message)
             {
-                // Decipher the packet from the controller
+                // Parse the message and parameters
                 vector<string> commands;
+                vector<string> parameters;
+
                 utility::tokenize(message, ":", commands);
                 if(commands.size() != 2)
                 {
                     return;
                 }
-
-                // Get the parameters sent to the computer
-                vector<string> parameters;
                 utility::tokenize(commands[1], ";", parameters);
 
-                // Process the command
-			    if(commands[0] == "ALERT")
-			    {
-			        if(parameters.size() != 1)
-			            return;
+                /*std::cout << commands[0] << " ";
+                for_each(parameters.begin(), parameters.end(), [] (std::string s)
+                {
+                    std::cout << s << " ";
+                });
+                std::cout << std::endl;*/
 
-			        // Alert the caller
-			        alertHandler(parameters[0]);
-			    }
+                // Alert response
+                if(commands[0] == "ALERT")
+                {
+                    if(parameters.size() != 1)
+                        return;
 
-			    // Is this a known "one response" command?
-				else if(find(commandNames, commandNames + commandNamesLength, commands[0]) != commandNames + commandNamesLength)
-				{
-					if(parameters.size() != 2)
-						return;
+                    auto command = find(statusNames, statusNames + statusNamesLength, parameters[0]);
+                    MotionController::Alert alert = static_cast<MotionController::Alert>(distance(statusNames, command));
+                    alertHandler(alert);
+                }
 
-					// Process the result of the arm command
-					int code = atoi(parameters[1].c_str());
-					/*{
-						lock_guard<mutex> lock(requestsMutex);
-						auto request = requests.find(make_pair(code, commands[0]));
-						if(request != requests.end())
-						{
-							request->second.set_value(parameters[0]);
-							requests.erase(request);
-						}
-					}*/
-				}
+                // Request response
+                else if(parameters.size() == 2)
+                {
+                    uint8_t code = atoi(parameters[1].c_str());
+
+                    if(commands[0] == "ARM")
+                    {
+                        lock_guard<mutex> lock(requestArmCallbacksMutex);
+                        auto handlerIt = requestArmCallbacks.find(code);
+                        handlerIt->second(parameters[0] == "OK");
+                        requestArmCallbacks.erase(handlerIt);
+                    }
+                    else if(commands[0] == "DISARM")
+                    {
+                        lock_guard<mutex> lock(requestDisarmCallbacksMutex);
+                        auto handlerIt = requestDisarmCallbacks.find(code);
+                        handlerIt->second(parameters[0] == "OK");
+                        requestDisarmCallbacks.erase(handlerIt);
+                    }
+                    else if(commands[0] == "PING")
+                    {
+                        lock_guard<mutex> lock(requestPingCallbacksMutex);
+                        auto handlerIt = requestPingCallbacks.find(code);
+                        handlerIt->second(parameters[0] == "OK");
+                        requestPingCallbacks.erase(handlerIt);
+                    }
+                    else if(commands[0] == "STEER")
+                    {
+                        lock_guard<mutex> lock(setSteeringCallbacksMutex);
+                        auto handlerIt = setSteeringCallbacks.find(code);
+                        handlerIt->second(parameters[0] == "OK");
+                        setSteeringCallbacks.erase(handlerIt);
+                    }
+                    else if(commands[0] == "VELOCITY")
+                    {
+                        lock_guard<mutex> lock(setVelocityCallbacksMutex);
+                        auto handlerIt = setVelocityCallbacks.find(code);
+                        handlerIt->second(parameters[0] == "OK");
+                        setVelocityCallbacks.erase(handlerIt);
+                    }
+                    else if(commands[0] == "ARMSTAT")
+                    {
+                        lock_guard<mutex> lock(requestArmStatusCallbacksMutex);
+                        auto handlerIt = requestArmStatusCallbacks.find(code);
+
+                        // Get the enum entry of the response
+                        auto command = find(statusNames, statusNames + statusNamesLength, parameters[0]);
+                        MotionController::ArmingStatus status = static_cast<MotionController::ArmingStatus>(distance(statusNames, command));
+                        handlerIt->second(status);
+                        requestArmStatusCallbacks.erase(handlerIt);
+                    }
+                }
             });
+
+            // setup index
+            index = 0;
         }
 
         MotionController::~MotionController()
         {
+            RequestDisarm([] (bool) {});
         }
 
-        void MotionController::SetAlertHandler(std::function<void (const std::string&)>&& handler)
+        std::string MotionController::GetStringRepresentation(Alert alert)
         {
-        	alertHandler = std::move(handler);
+            if(alert >= statusNamesLength)
+                return "";
+
+            return statusNames[alert];
         }
 
-        void MotionController::RequestArm(std::function<void (bool)> handler)
+        void MotionController::SetAlertHandler(const MotionController::AlertCallback& handler)
         {
-
+            alertHandler = handler;
         }
 
-        void MotionController::RequestDisarm(std::function<void (bool)> handler)
+        void MotionController::RequestArm(const MotionController::SuccessCallback& handler)
         {
+            lock_guard<mutex> lock(requestArmCallbacksMutex);
+            int code = index++;
+            requestArmCallbacks[code] = handler;
 
+            // Push out the command
+            stringstream stream;
+            stream << "ARM:" << code << "\r\n";
+            device->Write(stream.str());
         }
 
-        void MotionController::RequestArmStatus(std::function<void (ArmingStatus)> handler)
+        void MotionController::RequestDisarm(const MotionController::SuccessCallback& handler)
         {
+            lock_guard<mutex> lock(requestDisarmCallbacksMutex);
+            int code = index++;
+            requestDisarmCallbacks[code] = handler;
 
+            // Push out the command
+            stringstream stream;
+            stream << "DISARM:" << code << "\r\n";
+            device->Write(stream.str());
         }
 
-        void MotionController::RequestPing(std::function<void (bool)> handler)
+        void MotionController::RequestArmStatus(const MotionController::ArmingStatusCallback& handler)
         {
+            lock_guard<mutex> lock(requestArmStatusCallbacksMutex);
+            int code = index++;
+            requestArmStatusCallbacks[code] = handler;
 
+            // Push out the command
+            stringstream stream;
+            stream << "ARMSTAT:" << code << "\r\n";
+            device->Write(stream.str());
         }
 
-    	void MotionController::SetVelocity(short velocity)
-    	{
-
-    	}
-
-        void MotionController::SetSteering(short steering)
+        void MotionController::RequestPing(const MotionController::SuccessCallback& handler)
         {
+            lock_guard<mutex> lock(requestPingCallbacksMutex);
+            int code = index++;
+            requestPingCallbacks[code] = handler;
 
+            // Push out the command
+            stringstream stream;
+            stream << "PING:" << code << "\r\n";
+            device->Write(stream.str());
+        }
+
+        void MotionController::SetVelocity(short velocity, const MotionController::SuccessCallback& handler)
+        {
+            lock_guard<mutex> lock(setVelocityCallbacksMutex);
+            int code = index++;
+            setVelocityCallbacks[code] = handler;
+
+            // Push out the command
+            stringstream stream;
+            stream << "VELOCITY:" << velocity << ";" << code << "\r\n";
+            device->Write(stream.str());
+        }
+
+        void MotionController::SetSteering(short steering, const MotionController::SuccessCallback& handler)
+        {
+            lock_guard<mutex> lock(setSteeringCallbacksMutex);
+            int code = index++;
+            setSteeringCallbacks[code] = handler;
+
+            // Push out the command
+            stringstream stream;
+            stream << "STEER:" << steering << ";" << code << "\r\n";
+            device->Write(stream.str());
         }
     }
 }

@@ -14,7 +14,7 @@ namespace kybernetes
 {
     namespace io
     {
-        SerialPort::SerialPort(const string& path, uint32_t baudrate, DataBits dataBits, Parity parity, StopBits stopBits, function<void (Error)> callback)
+        SerialPort::SerialPort(const string& path, uint32_t baudrate, DataBits dataBits, Parity parity, StopBits stopBits, const function<void (SerialPort *, Error)>& callback)
             : baudrate(baudrate), dataBits(dataBits), parity(parity), stopBits(stopBits), descriptor(-1)
         {
             // Attempt to open the serial port
@@ -22,7 +22,8 @@ namespace kybernetes
             if(descriptor < 0)
             {
                 // An error has occurred
-                callback(SerialPort::ErrorOpenFailed);
+                callback(nullptr, SerialPort::ErrorOpenFailed);
+                return;
             }
 
             // Get the active serial port configuration
@@ -82,10 +83,10 @@ namespace kybernetes
             ioctl(descriptor, TCSETS2, &configuration);
 
             // Success!
-            callback(SerialPort::Success);
+            callback(this, SerialPort::Success);
         }
 
-        SerialPort::SerialPort(const string& path, uint32_t baudrate, function<void (Error)> callback)
+        SerialPort::SerialPort(const string& path, uint32_t baudrate, const function<void (SerialPort *, Error)>& callback)
             : SerialPort(path, baudrate, SerialPort::DataBits8, SerialPort::ParityNone, SerialPort::StopBits1, callback)
         {
         }
@@ -140,6 +141,16 @@ namespace kybernetes
                 close(descriptor);
                 descriptor = -1;
             }
+        }
+
+        ssize_t SerialPort::Write(const void *data, size_t n)
+        {
+            return write(descriptor, data, n);
+        }
+
+        ssize_t SerialPort::Read(void *data, size_t n)
+        {
+            return read(descriptor, data, n);
         }
     }
 }

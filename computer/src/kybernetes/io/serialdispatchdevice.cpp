@@ -1,96 +1,102 @@
 #include <kybernetes/io/serialdispatchdevice.hpp>
-#include <errno.h>
+#include <kybernetes/utility/posixsignalhandler.hpp>
+
+#include <iostream>
+#include <algorithm>
+//#include <chrono>
+
+#include <fcntl.h>
+#include <unistd.h>
 
 using namespace std;
+//using namespace std::chrono;
 
 namespace kybernetes
 {
     namespace io
     {
-        SerialDispatchDevice::SerialDispatchDevice(const string& path, dispatch_queue_t queue, uint32_t baudrate, SerialPort::DataBits dataBits, SerialPort::Parity parity, SerialPort::StopBits stopBits, function<void (int)> callback)
-            : queue(queue)
+        SerialDispatchDevice::SerialDispatchDevice(const string& path, dispatch_queue_t queue_, uint32_t baudrate, SerialPort::DataBits dataBits, SerialPort::Parity parity, SerialPort::StopBits stopBits, function<void (bool)> callback)
+            : port(path), queue(queue_), signalHandler(-1)
         {
-            // Open the serial port
-            serialPort = make_unique<SerialPort>(path, baudrate, dataBits, parity, stopBits, [&queue, &callback] (SerialPort::Error error)
+            serialPort = make_unique<SerialPort>(path, baudrate, dataBits, parity, stopBits, [this, callback] (SerialPort *device, SerialPort::Error error)
             {
-                // If the port failed to open
                 if(error != SerialPort::Success)
                 {
-                    dispatch_async(queue, ^
-                    {
-                        callback(-EPERM);
-                    });
+                    dispatch_async(queue, ^{ callback(false); });
+                    return;
                 }
-            });
-            serialPort->Flush();
 
-            // Create the io channel for the serial port
-            channel = dispatch_io_create(DISPATCH_IO_STREAM, serialPort->GetHandle(), queue, ^(int error)
-            {
-                // If the channel failed to open
-                if(error)
+                if(fcntl(device->GetHandle(), F_SETOWN, getpid() ) < 0 )
                 {
-                    callback(error);
+                    dispatch_async(queue, ^{ callback(false); });
+                    return;
                 }
-            });
 
-            dispatch_io_set_low_water(channel, 1);
-            dispatch_io_set_high_water(channel, 57);
-
-            // Establish a read handler
-            dispatch_io_read(channel, 0, SIZE_MAX, queue, ^(bool done, dispatch_data_t data, int error)
-            {
-                // Did we successfully get data?
-                if(data)
+                if(fcntl(device->GetHandle(), F_SETFL, FASYNC ) < 0)
                 {
-                    // Add any received data onto the buffer
-                    dispatch_data_apply(data, ^(dispatch_data_t, size_t, const void *location, size_t size)
-                    {
-                        buffer.append((const char*) location, size);
-                        return true;
-                    });
+                    dispatch_async(queue, ^{ callback(false); });
+                    return;
+                }
+                device->Flush();
 
-                    // Attempt to find the end of the data
-                    size_t p = buffer.find("\r\n");
-                    if(p != string::npos)
-                    {
-                        // Get the string up to this point
-                        string message = buffer.substr(0, p+2);
-                        buffer.erase(0, p+2);
+                // Register signal handler
+                signalHandler = utility::PosixSignalHandler::Instance()->AttachHandler(SIGIO, [this, device] ()
+                {
+                    // Read all the available data from the serial port
+                    vector<char>::size_type quantity = device->Available();
+                    vector<char>::size_type position = buffer.size();
+                    buffer.resize(position + quantity);
+                    device->Read(buffer.data() + position, quantity);
 
-                        if(handler)
-                        {
-                            handler(message);
-                        }
+                    // Search for ASCII lines in the data
+                    const char *terminator = "\r\n";
+                    vector<char>::iterator it;
+
+                    //int n = 0;
+                    while((it = std::search(buffer.begin(), buffer.end(), terminator, terminator+2)) != buffer.end())
+                    {
+                        // Construct a string from the section of the buffer
+                        string message(buffer.begin(), it);
+                        buffer.erase(buffer.begin(), it+2);
+                        handler(message);
+                        //n++;
                     }
-                }
+
+                    //high_resolution_clock::time_point now = high_resolution_clock::now();
+                    //duration<double> frameDeltaRaw = duration_cast<duration<double>>(now - previousTime);
+                    //previousTime = now;
+
+                    //cout << "[DEBUG " << port << "] ingested " << quantity << " bytes, dispatched " << n << " messages, " << buffer.size() << " bytes left.  elapsed since previous " << frameDeltaRaw.count() << endl;
+                });
+
+                // Success!
+                dispatch_async(queue, ^{ callback(true); });
             });
+            //previousTime = high_resolution_clock::now();
         }
 
-        SerialDispatchDevice::SerialDispatchDevice(const string& path, dispatch_queue_t queue, uint32_t baudrate, function<void (int)> callback)
+        SerialDispatchDevice::SerialDispatchDevice(const string& path, dispatch_queue_t queue, uint32_t baudrate, function<void (bool)> callback)
             : SerialDispatchDevice(path, queue, baudrate, SerialPort::DataBits8, SerialPort::ParityNone, SerialPort::StopBits1, callback)
         {
         }
 
         SerialDispatchDevice::~SerialDispatchDevice()
         {
-            // stop reading
-            if(serialPort->IsOpen())
-            {
-                dispatch_io_close(channel, DISPATCH_IO_STOP);
-            }
+            if(!serialPort->IsOpen())
+                return;
+
+            utility::PosixSignalHandler::Instance()->DetachHandler(signalHandler);
         }
 
-        void SerialDispatchDevice::SetHandler(SerialDispatchDevice::handler_t&& handler)
+        void SerialDispatchDevice::SetHandler(const SerialDispatchDevice::handler_t& handler)
         {
             this->handler = move(handler);
         }
-        
-        void SerialDispatchDevice::SetDataSizeHints(size_t lowWater, size_t highWater)
+
+        // Write data to the device
+        bool SerialDispatchDevice::Write(const string& line)
         {
-            // Don't bug user unless we've received at least a js_Event object
-            dispatch_io_set_low_water(channel, lowWater);
-            dispatch_io_set_high_water(channel, highWater);
+            return serialPort->Write(line.data(), line.size()) == line.size();
         }
     }
 }

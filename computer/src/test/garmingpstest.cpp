@@ -28,6 +28,7 @@ public:
             cout << setprecision(10) << "    Latitude  = " << state.latitude << " degrees" << endl;
             cout << setprecision(10) <<  "    Longitude = " << state.longitude << " degrees" << endl;
             cout << setprecision(10) <<  "    Altitude  = " << state.altitude << " meters" << endl;
+            cout << setprecision(10) <<  "    Error     = " << state.precision << " meters" << endl;
             cout << endl;
         });
     }

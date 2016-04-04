@@ -102,17 +102,14 @@ namespace kybernetes
                     handler(state);
                 }
             });
-
-            // Set the data size hints
-            device->SetDataSizeHints(1, 57);
         }
 
         // Verify that a packet from the GPS is valid
         bool GarminGPS::IsValidGPSSentence(const std::string& sentence)
         {
-            if(sentence.size() != 57)
+            if(sentence.size() != 55)
                 return false;
-            else if(sentence[0] != '@' || sentence[55] != '\r' || sentence[56] != '\n')
+            else if(sentence[0] != '@')
                 return false;
 
             // Its probably valid

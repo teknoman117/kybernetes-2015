@@ -23,9 +23,10 @@ public:
     {
         // Parse command line options (for sensors to monitor)
         char option;
+        short cutoff = 400;
         bool monitorSonars = false, monitorIMU = false, monitorBumpers = false;
         string path = SensorControllerPath;
-        while ((option = getopt (argc, argv, "p:sib")) != 255)
+        while ((option = getopt (argc, argv, "p:sibc:")) != 255)
         switch (option)
         {
             case 'p':
@@ -39,6 +40,9 @@ public:
                 break;
             case 'b':
                 monitorBumpers = true;
+                break;
+            case 'c':
+                cutoff = atoi(optarg);
                 break;
             case '?':
                  if (isprint (optopt))
@@ -56,10 +60,26 @@ public:
         // Register handlers
         if(monitorSonars)
         {
-            sensorController->SetSonarHandler([] (SensorController::SonarState& state)
+            sensorController->SetSonarHandler([cutoff] (SensorController::SonarState& state)
             {
                 // Print it out
-                cout << "Sonars ==> " << state[0] << " cm, " << state[1] << " cm, " << state[2] << " cm" << endl;
+                cout << "Sonars ==> ";
+                if(state[0] > 0 && state[0] < cutoff)
+                    cout << state[0] << " cm, ";
+                else
+                    cout << "clear, ";
+
+                if(state[1] > 0 && state[1] < cutoff)
+                    cout << state[1] << " cm, ";
+                else
+                    cout << "clear, ";
+    
+                if(state[2] > 0 && state[2] < cutoff)
+                    cout << state[2] << " cm";
+                else
+                    cout << "clear ";
+ 
+                cout << endl;
             });
         }
 

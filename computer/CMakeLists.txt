@@ -13,6 +13,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fblocks -march=native -mfpu=neon -std=c
 
 # Tell CMAKE to invoke gcc on assembly sources
 set_property(SOURCE src/kybernetes/cv/yuv422_bithreshold.s PROPERTY LANGUAGE C)
+#set_property(SOURCE src/kybernetes/utility/posixsignalhandler.mm PROPERTY COMPILE_FLAGS -objc)
 
 # Include path
 include_directories (${PROJECT_SOURCE_DIR}/include)
@@ -22,8 +23,10 @@ include_directories (${PROJECT_SOURCE_DIR}/include)
 add_library(kybernetes SHARED src/kybernetes/io/serialdispatchdevice.cpp
                               src/kybernetes/io/serialport.cpp
                               src/kybernetes/sensor/garmingps.cpp
+                              src/kybernetes/sensor/uvccamera.cpp
                               src/kybernetes/utility/application.cpp
                               src/kybernetes/utility/utility.cpp
+                              src/kybernetes/utility/posixsignalhandler.cpp
                               src/kybernetes/controller/sensor_controller.cpp
                               src/kybernetes/controller/motion_controller.cpp
                               src/kybernetes/cv/yuv422_bithreshold.s
@@ -45,3 +48,6 @@ target_link_libraries(garmingps_test kybernetes)
 
 add_executable(sensor_test src/test/sensortest.cpp)
 target_link_libraries(sensor_test kybernetes)
+
+add_executable(motion_test src/test/motiontest.cpp)
+target_link_libraries(motion_test kybernetes)
