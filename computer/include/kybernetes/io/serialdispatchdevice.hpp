@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
 #include <memory>
-//#include <chrono>
 
 namespace kybernetes
 {
@@ -25,9 +24,6 @@ namespace kybernetes
             std::string                 port;
             dispatch_queue_t            queue;
             handler_t                   handler;
-            size_t                      signalHandler;
-
-            //std::chrono::high_resolution_clock::time_point previousTime;
 
             std::vector<char>           buffer;
 

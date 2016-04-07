@@ -73,6 +73,9 @@ namespace kybernetes
             // Close the serialport
             void Close();
 
+            // Set if the port blocks
+            bool SetBlocking(bool blocking = true);
+
             // Data read/write operations
             ssize_t Write(const void *data, size_t n);
             ssize_t Read(void *data, size_t n);

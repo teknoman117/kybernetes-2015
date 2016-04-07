@@ -27,6 +27,7 @@ add_library(kybernetes SHARED src/kybernetes/io/serialdispatchdevice.cpp
                               src/kybernetes/utility/application.cpp
                               src/kybernetes/utility/utility.cpp
                               src/kybernetes/utility/posixsignalhandler.cpp
+                              src/kybernetes/utility/pollhandler.cpp
                               src/kybernetes/controller/sensor_controller.cpp
                               src/kybernetes/controller/motion_controller.cpp
                               src/kybernetes/cv/yuv422_bithreshold.s

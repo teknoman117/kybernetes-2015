@@ -18,7 +18,7 @@ namespace kybernetes
             : baudrate(baudrate), dataBits(dataBits), parity(parity), stopBits(stopBits), descriptor(-1)
         {
             // Attempt to open the serial port
-            descriptor = open(path.c_str(), O_RDWR);
+            descriptor = open(path.c_str(), O_RDWR | O_NONBLOCK);
             if(descriptor < 0)
             {
                 // An error has occurred
@@ -106,6 +106,32 @@ namespace kybernetes
         bool SerialPort::IsOpen() const
         {
             return (descriptor >= 0);
+        }
+
+        // Flow control
+        bool SerialPort::SetBlocking(bool blocking)
+        {
+            int flags;
+            int ret;
+
+            // Fetch the current device flags
+            ret = fcntl (descriptor, F_GETFL, 0);
+            if (ret == -1)
+            {
+                return false;
+            }
+
+            // Enable or disable blocking
+            flags = blocking ? (ret & ~O_NONBLOCK) : (ret | O_NONBLOCK);
+
+            // Set the flags
+            ret = fcntl (descriptor, F_SETFL, flags);
+            if (ret == -1)
+            {
+                return false;
+            }
+
+            return true;
         }
 
         // Get the number of bytes in the input buffer
