@@ -52,6 +52,9 @@ namespace kybernetes
                 dispatch_main();
             }
 
+            // Request the application to terminate
+            void Exit();
+
             explicit Application(int argc, char** argv, std::unique_ptr<Delegate> delegate, ctor_cookie);
         };
     }

@@ -39,7 +39,10 @@ namespace kybernetes
                         // Construct a string from the section of the buffer
                         string message(buffer.begin(), it);
                         buffer.erase(buffer.begin(), it+2);
-                        handler(message);
+                        if(handler)
+                        {
+                            handler(message);
+                        }
                     }
                 });
 

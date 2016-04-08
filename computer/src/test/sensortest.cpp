@@ -7,16 +7,19 @@
 #include <kybernetes/constants/constants.hpp>
 #include <kybernetes/utility/application.hpp>
 #include <kybernetes/controller/sensor_controller.hpp>
+#include <kybernetes/sensor/garmingps.hpp>
 
 using namespace std;
 
 using namespace kybernetes::controller;
 using namespace kybernetes::constants;
 using namespace kybernetes::utility;
+using namespace kybernetes::sensor;
 
 class SensorTestApplication : public Application::Delegate
 {
     unique_ptr<SensorController> sensorController;
+    unique_ptr<GarminGPS>        gps;
 
 public:
     void ApplicationDidLaunch(Application *application, int argc, char **argv)
@@ -24,9 +27,9 @@ public:
         // Parse command line options (for sensors to monitor)
         char option;
         short cutoff = 400;
-        bool monitorSonars = false, monitorIMU = false, monitorBumpers = false;
+        bool monitorSonars = false, monitorIMU = false, monitorBumpers = false, monitorGPS = false;
         string path = SensorControllerPath;
-        while ((option = getopt (argc, argv, "p:sibc:")) != 255)
+        while ((option = getopt (argc, argv, "p:sigbc:")) != 255)
         switch (option)
         {
             case 'p':
@@ -40,6 +43,9 @@ public:
                 break;
             case 'b':
                 monitorBumpers = true;
+                break;
+            case 'g':
+                monitorGPS = true;
                 break;
             case 'c':
                 cutoff = atoi(optarg);
@@ -55,53 +61,88 @@ public:
         };
 
         // Open the sensor controller
-        sensorController = make_unique<SensorController>(path, dispatch_get_main_queue());
-
-        // Register handlers
-        if(monitorSonars)
+        sensorController = make_unique<SensorController>(path, dispatch_get_main_queue(), 57600, [monitorBumpers, monitorSonars, monitorIMU, cutoff] (SensorController *sensorController, bool success)
         {
-            sensorController->SetSonarHandler([cutoff] (SensorController::SonarState& state)
+            if(!success)
             {
-                // Print it out
-                cout << "Sonars ==> ";
-                if(state[0] > 0 && state[0] < cutoff)
-                    cout << state[0] << " cm, ";
-                else
-                    cout << "clear, ";
+                cout << "An error occurred in opening the sensor controller." << endl;
+                Application::Instance()->Exit();
+                return;
+            }
 
-                if(state[1] > 0 && state[1] < cutoff)
-                    cout << state[1] << " cm, ";
-                else
-                    cout << "clear, ";
-    
-                if(state[2] > 0 && state[2] < cutoff)
-                    cout << state[2] << " cm";
-                else
-                    cout << "clear ";
- 
-                cout << endl;
-            });
-        }
+            // Register handlers
+            if(monitorSonars)
+            {
+                sensorController->SetSonarHandler([cutoff] (SensorController::SonarState& state)
+                {
+                    // Print it out
+                    cout << "Sonars ==> ";
+                    if(state[0] > 0 && state[0] < cutoff)
+                        cout << state[0] << " cm, ";
+                    else
+                        cout << "clear, ";
 
-        // Register handlers
-        if(monitorIMU)
+                    if(state[1] > 0 && state[1] < cutoff)
+                        cout << state[1] << " cm, ";
+                    else
+                        cout << "clear, ";
+        
+                    if(state[2] > 0 && state[2] < cutoff)
+                        cout << state[2] << " cm";
+                    else
+                        cout << "clear ";
+     
+                    cout << endl;
+                });
+            }
+
+            // Register handlers
+            if(monitorIMU)
+            {
+                sensorController->SetIMUHandler([] (SensorController::IMUState& state)
+                {
+                    // Print it out
+                    cout << "IMU ==> " << state[0] << " degrees, " << state[1] << " degrees, " << state[2] << " degrees" << endl;
+                });
+            }
+
+            // Register handlers
+            if(monitorBumpers)
+            {
+                sensorController->SetBumperHandler([] (SensorController::BumperState& state)
+                {
+                    // Print it out
+                    cout << "Bumpers ==> " << state[0] << ", " << state[1] << endl;
+                });
+            }
+        });
+
+        // Open the GPS
+        gps = std::make_unique<GarminGPS>(GPSPath, dispatch_get_main_queue(), 9600, [monitorGPS] (GarminGPS *gps, bool success)
         {
-            sensorController->SetIMUHandler([] (SensorController::IMUState& state)
+            // An error occurred
+            if(!success)
             {
-                // Print it out
-                cout << "IMU ==> " << state[0] << " degrees, " << state[1] << " degrees, " << state[2] << " degrees" << endl;
-            });
-        }
+                cout << "An error occurred opening the GPS." << endl << endl;
+                Application::Instance()->Exit();
 
-        // Register handlers
-        if(monitorBumpers)
-        {
-            sensorController->SetBumperHandler([] (SensorController::BumperState& state)
+                return;
+            }
+
+            // Register the gps handler
+            if(monitorGPS)
             {
-                // Print it out
-                cout << "Bumpers ==> " << state[0] << ", " << state[1] << endl;
-            });
-        }
+                gps->SetHandler([] (const GarminGPS::State& state)
+                {
+                    cout << "Received GPS Packet @ " << asctime(localtime((time_t *) &state.timestamp));
+                    cout << setprecision(10) << "    Latitude  = " << state.latitude << " degrees" << endl;
+                    cout << setprecision(10) <<  "    Longitude = " << state.longitude << " degrees" << endl;
+                    cout << setprecision(10) <<  "    Altitude  = " << state.altitude << " meters" << endl;
+                    cout << setprecision(10) <<  "    Error     = " << state.precision << " meters" << endl;
+                    cout << endl;
+                });
+            }
+        });
     }
     void ApplicationWillTerminate()
     {

@@ -21,15 +21,26 @@ class TestApplication : public Application::Delegate
 public:
     void ApplicationDidLaunch(Application *application, int argc, char **argv)
     {
-        gps = std::make_unique<GarminGPS>(GPSPath, dispatch_get_main_queue());
-        gps->SetHandler([] (const GarminGPS::State& state)
+        gps = std::make_unique<GarminGPS>(GPSPath, dispatch_get_main_queue(), 9600, [] (GarminGPS *gps, bool success)
         {
-            cout << "Received GPS Packet @ " << asctime(localtime((time_t *) &state.timestamp));
-            cout << setprecision(10) << "    Latitude  = " << state.latitude << " degrees" << endl;
-            cout << setprecision(10) <<  "    Longitude = " << state.longitude << " degrees" << endl;
-            cout << setprecision(10) <<  "    Altitude  = " << state.altitude << " meters" << endl;
-            cout << setprecision(10) <<  "    Error     = " << state.precision << " meters" << endl;
-            cout << endl;
+            // An error occurred
+            if(!success)
+            {
+                cout << "An error occurred opening the GPS." << endl << endl;
+                Application::Instance()->Exit();
+
+                return;
+            }
+
+            gps->SetHandler([] (const GarminGPS::State& state)
+            {
+                cout << "Received GPS Packet @ " << asctime(localtime((time_t *) &state.timestamp));
+                cout << setprecision(10) << "    Latitude  = " << state.latitude << " degrees" << endl;
+                cout << setprecision(10) <<  "    Longitude = " << state.longitude << " degrees" << endl;
+                cout << setprecision(10) <<  "    Altitude  = " << state.altitude << " meters" << endl;
+                cout << setprecision(10) <<  "    Error     = " << state.precision << " meters" << endl;
+                cout << endl;
+            });
         });
     }
     void ApplicationWillTerminate()

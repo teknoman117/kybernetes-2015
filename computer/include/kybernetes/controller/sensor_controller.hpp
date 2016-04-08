@@ -11,6 +11,8 @@ namespace kybernetes
         class SensorController
         {
         public:
+            typedef std::function<void (bool)> SuccessCallback;
+
             // Sonar state packet
             struct SonarState
             {
@@ -88,13 +90,16 @@ namespace kybernetes
 
         private:
             std::unique_ptr<io::SerialDispatchDevice> device;
+            dispatch_queue_t                          queue;
 
             std::function<void (SensorController::SonarState&)>  sonarCallback;
             std::function<void (SensorController::IMUState&)>    imuCallback;
             std::function<void (SensorController::BumperState&)> bumperCallback;
 
+            void ReceiveMessageHandler(const std::string& message);
+
         public:
-            SensorController(std::string path, dispatch_queue_t queue, const uint32_t baudrate = 57600);
+            SensorController(std::string path, dispatch_queue_t queue, const uint32_t baudrate, std::function<void (SensorController *, bool)> handler);
 
             void SetSonarHandler(std::function<void (SensorController::SonarState&)>&& handler);
             void SetIMUHandler(std::function<void (SensorController::IMUState&)>&& handler);

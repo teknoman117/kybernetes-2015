@@ -60,19 +60,21 @@ namespace kybernetes
             std::mutex                                setVelocityCallbacksMutex;
             std::mutex                                setSteeringCallbacksMutex;
 
+            void ReceiveMessageHandler(const std::string& message);
+
         public:
-            MotionController(const std::string& path, dispatch_queue_t queue, uint32_t baudrate = 57600);
+            MotionController(const std::string& path, dispatch_queue_t queue, uint32_t baudrate, std::function<void (MotionController *, bool)> handler);
             ~MotionController();
 
-            void RequestArm(const SuccessCallback& handler);
-            void RequestDisarm(const SuccessCallback& handler);
-            void RequestPing(const SuccessCallback& handler);
-            void RequestArmStatus(const ArmingStatusCallback& handler);
+            void RequestArm(SuccessCallback&& handler);
+            void RequestDisarm(SuccessCallback&& handler);
+            void RequestPing(SuccessCallback&& handler);
+            void RequestArmStatus(ArmingStatusCallback&& handler);
 
-            void SetVelocity(short velocity, const SuccessCallback& handler);
-            void SetSteering(short steering, const SuccessCallback& handler);
+            void SetVelocity(short velocity, SuccessCallback&& handler);
+            void SetSteering(short steering, SuccessCallback&& handler);
 
-            void SetAlertHandler(const AlertCallback& handler);
+            void SetAlertHandler(AlertCallback&& handler);
             static std::string GetStringRepresentation(Alert alert);
         };
     }

@@ -47,10 +47,13 @@ namespace kybernetes
             std::function<void (GarminGPS::State&)> handler;
             std::unique_ptr<io::SerialDispatchDevice> device;
 
-        public:
-            GarminGPS(std::string path, dispatch_queue_t queue, const uint32_t baudrate = 9600);
+            void ReceiveMessageHandler(const std::string& message);
 
-            void SetHandler(std::function<void (GarminGPS::State&)> handler);
+        public:
+            GarminGPS(std::string path, dispatch_queue_t queue, const uint32_t baudrate, std::function<void (GarminGPS *, bool)> callback);
+
+            void SetHandler(std::function<void (GarminGPS::State&)>&& handler);
+
         };
     }
 }

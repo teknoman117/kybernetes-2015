@@ -31,8 +31,8 @@ public:
     void ApplicationDidLaunch(Application *application, int argc, char **argv)
     {
         // Open the motion controller
-        motionController = make_unique<MotionController>(MotionControllerPath, dispatch_get_main_queue());
-        sensorController = make_unique<SensorController>(SensorControllerPath, dispatch_get_main_queue());
+        motionController = make_unique<MotionController>(MotionControllerPath, dispatch_get_main_queue(), 57600, [] (MotionController *, bool) {});
+        sensorController = make_unique<SensorController>(SensorControllerPath, dispatch_get_main_queue(), 57600, [] (SensorController *, bool) {});
         motionControllerInitialized = false;
         motionControllerArmed       = false;
         collisionEmergency          = false;

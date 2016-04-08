@@ -8,7 +8,6 @@
 #include <mutex>
 
 #include <dispatch/dispatch.h>
-#include <sys/epoll.h>
 
 namespace kybernetes
 {
@@ -21,7 +20,8 @@ namespace kybernetes
             std::mutex                                          mContentMutex;
             std::unordered_map<int, std::function<void (void)>> mHandlers;
             int                                                 mEpollFd;
-            size_t                                              mEpollFdCount;
+            int                                                 mEpollNotifyFd;
+            std::atomic<size_t>                                 mEpollFdCount;
 
             dispatch_queue_t                                    mQueue;
 
@@ -29,8 +29,10 @@ namespace kybernetes
             PollHandler(dispatch_queue_t queue);
             ~PollHandler();
 
-            void AttachHandler(int fd, std::function<void (void)>&& handler);
-            void DetachHandler(int fd);
+            bool AttachHandler(int fd, std::function<void (void)>&& handler);
+            bool DetachHandler(int fd);
+            bool IsActive() const;
+            void Interrupt();
 
             static PollHandler* Instance();
         };

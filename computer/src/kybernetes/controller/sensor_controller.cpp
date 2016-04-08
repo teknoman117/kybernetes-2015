@@ -12,63 +12,22 @@ namespace kybernetes
     namespace controller
     {
         // Open the GPS
-        SensorController::SensorController(std::string path, dispatch_queue_t queue, const uint32_t baudrate)
+        SensorController::SensorController(std::string path, dispatch_queue_t queue_, const uint32_t baudrate, std::function<void (SensorController *, bool)> callback)
+            : queue(queue_)
         {
             // Open the sensor controller device
-            device = make_unique<io::SerialDispatchDevice>(path, queue, baudrate, [] (int error)
+            device = make_unique<io::SerialDispatchDevice>(path, queue, baudrate, [this, callback] (bool success)
             {
-                if(error)
+                // An error occurred
+                if(!success)
                 {
-                    // do somethign about it
-                }
-            });
-
-            // Register the handler for receipt of a message
-            device->SetHandler([this] (const string& message)
-            {
-                // Decipher the packet from the controller
-                vector<string> commands;
-                utility::tokenize(message, ":", commands);
-                if(commands.size() != 2)
-                {
+                    callback(this, false);
                     return;
                 }
 
-                // Get the parameters sent to the computer
-                vector<string> parameters;
-                utility::tokenize(commands[1], ";", parameters);
-
-                // Process the command
-                if(commands[0] == "IMU")
-                {
-                    SensorController::IMUState state;
-                    if(parameters.size() != 3)
-                        return;
-                    for(int i = 0; i < 3; i++)
-                        state.angles[i] = atof(parameters[i].c_str());
-                    if(imuCallback)
-                        imuCallback(state);
-                }
-                else if(commands[0] == "SONAR")
-                {
-                    SensorController::SonarState state;
-                    if(parameters.size() != 3)
-                        return;
-                    for(int i = 0; i < 3; i++)
-                        state.distance[i] = atof(parameters[i].c_str());
-                    if(sonarCallback)
-                        sonarCallback(state);
-                }
-                else if(commands[0] == "BUMPER")
-                {
-                    SensorController::BumperState state;
-                    if(parameters.size() != 2)
-                        return;
-                    for(int i = 0; i < 2; i++)
-                        state.value[i] = (atoi(parameters[i].c_str()) == 1);
-                    if(bumperCallback)
-                        bumperCallback(state);
-                }
+                // Register the handler for receipt of a message
+                device->SetHandler(bind(&SensorController::ReceiveMessageHandler, this, placeholders::_1));
+                callback(this, true);
             });
         }
 
@@ -85,6 +44,53 @@ namespace kybernetes
         void SensorController::SetBumperHandler(std::function<void (SensorController::BumperState&)>&& handler)
         {
             bumperCallback = move(handler);
+        }
+
+        void SensorController::ReceiveMessageHandler(const std::string& message)
+        {
+            // Decipher the packet from the controller
+            vector<string> commands;
+            utility::tokenize(message, ":", commands);
+            if(commands.size() != 2)
+            {
+                return;
+            }
+
+            // Get the parameters sent to the computer
+            vector<string> parameters;
+            utility::tokenize(commands[1], ";", parameters);
+
+            // Process the command
+            if(commands[0] == "IMU")
+            {
+                SensorController::IMUState state;
+                if(parameters.size() != 3)
+                    return;
+                for(int i = 0; i < 3; i++)
+                    state.angles[i] = atof(parameters[i].c_str());
+                if(imuCallback)
+                    imuCallback(state);
+            }
+            else if(commands[0] == "SONAR")
+            {
+                SensorController::SonarState state;
+                if(parameters.size() != 3)
+                    return;
+                for(int i = 0; i < 3; i++)
+                    state.distance[i] = atof(parameters[i].c_str());
+                if(sonarCallback)
+                    sonarCallback(state);
+            }
+            else if(commands[0] == "BUMPER")
+            {
+                SensorController::BumperState state;
+                if(parameters.size() != 2)
+                    return;
+                for(int i = 0; i < 2; i++)
+                    state.value[i] = (atoi(parameters[i].c_str()) == 1);
+                if(bumperCallback)
+                    bumperCallback(state);
+            }
         }
     }
 }

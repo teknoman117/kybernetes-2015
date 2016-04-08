@@ -30,6 +30,15 @@ namespace kybernetes
             return instance.get();
         }
 
+        void Application::Exit()
+        {
+            dispatch_async(dispatch_get_main_queue(), ^
+            {
+                delegate->ApplicationWillTerminate();
+                exit(0);
+            });
+        }
+
         // POSIX Signal Handler (serves to redirect the signals into the application singleton)
         void Application::CatchPOSIXSignal(int signalNumber)
         {
@@ -41,11 +50,7 @@ namespace kybernetes
             switch(signalNumber)
             {
                 case SIGINT:
-                    dispatch_async(dispatch_get_main_queue(), ^
-                    {
-                        delegate->ApplicationWillTerminate();
-                        exit(0);
-                    });
+                    Exit();
                     break;
 
                 default:
