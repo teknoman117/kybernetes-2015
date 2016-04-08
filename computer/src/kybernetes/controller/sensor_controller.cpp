@@ -21,13 +21,13 @@ namespace kybernetes
                 // An error occurred
                 if(!success)
                 {
-                    callback(this, false);
+                    dispatch_async(queue, ^{callback(this, false);});
                     return;
                 }
 
                 // Register the handler for receipt of a message
                 device->SetHandler(bind(&SensorController::ReceiveMessageHandler, this, placeholders::_1));
-                callback(this, true);
+                dispatch_async(queue, ^{callback(this, true);});
             });
         }
 

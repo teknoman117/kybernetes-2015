@@ -18,6 +18,29 @@ using namespace kybernetes::controller;
 using namespace kybernetes::constants;
 using namespace kybernetes::utility;
 
+namespace
+{
+    const float kp = 0.05;
+    const float ki = 0.09;
+    const float kd = 0.04;
+
+    const float headingKp = (450.0 / 45.0);
+    const short steeringExtreme = 450;
+
+    template<typename T>
+    inline T clamp(T x, T a, T b)
+    {
+        return x < a ? a : (x > b ? b : x);
+    }
+
+    inline double fixheading(double heading)
+    {
+        while(heading > 180.0) heading -= 360.0;
+        while(heading < -180.0) heading += 360.0;
+        return heading;
+    }
+}
+
 class MotionTestApplication : public Application::Delegate
 {
     unique_ptr<SensorController> sensorController;
@@ -25,24 +48,34 @@ class MotionTestApplication : public Application::Delegate
 
     bool                         motionControllerInitialized;
     bool                         motionControllerArmed;     
-    bool                         collisionEmergency;  
+    bool                         imuReady;
+
+    SensorController::IMUState   previousState;
+    float                        targetHeading;
 
 public:
     void ApplicationDidLaunch(Application *application, int argc, char **argv)
     {
         motionControllerInitialized = false;
         motionControllerArmed       = false;
-        collisionEmergency          = false;
+        imuReady                    = false;
+        targetHeading               = 0.f;
 
         // Open the motion controller
-        motionController = make_unique<MotionController>(MotionControllerPath, dispatch_get_main_queue(), 57600, [] (MotionController *controller, bool success) 
+        motionController = make_unique<MotionController>(MotionControllerPath, dispatch_get_main_queue(), 57600, [this] (bool success) 
         {
+            // Something went wrong
             if(!success)
             {
                 cout << "An error occurred in opening the motion controller." << endl;
                 Application::Instance()->Exit();
                 return;
             }
+
+            // Motion controller has become ready
+            cout << "[HEY LISTEN] I am ready to go!" << endl;
+            motionControllerInitialized = true;
+            motionController->SetPID(kp, ki, kd);
         });
 
         sensorController = make_unique<SensorController>(SensorControllerPath, dispatch_get_main_queue(), 57600, [] (SensorController *controller, bool success)
@@ -60,19 +93,15 @@ public:
         {
             switch(alert)
             {
-                case MotionController::AlertReady:
-                    motionControllerInitialized = true;
-                    cout << "[HEY LISTEN] I am ready to go!" << endl;
-                    break;
-
                 // Arm the motion controller if the motion controller is not armed
                 case MotionController::AlertHeartbeat:
-                    if(motionControllerInitialized && !motionControllerArmed && !collisionEmergency)
+                    if(motionControllerInitialized && !motionControllerArmed && imuReady)
                     {
                         motionController->RequestArm([this] (bool success)
                         {
                             cout << "[HEY LISTEN] I am currently disabled by my operator!" << endl;
                             motionControllerArmed = success;
+                            targetHeading = previousState[SensorController::IMUState::Yaw];
                         });
                     }
                     break;
@@ -89,7 +118,7 @@ public:
 
                 // If we become armed, sent a set velocity request
                 case MotionController::AlertStatusArmed:
-                    motionController->SetVelocity(20, [] (bool success)
+                    motionController->SetVelocity(900, [] (bool success)
                     {
                         if(!success)
                             cout << "[HEY LISTEN] I failed to set my velocity" << endl;
@@ -102,7 +131,23 @@ public:
             };
         });
 
+        // Set the IMU handler
+        sensorController->SetIMUHandler([this] (SensorController::IMUState& state)
+        {
+            // Based on our current heading to target, set the direction
+            float error = state[2];
+            float response = headingKp * error;
+            short requestedSteering = clamp<short>((short) response, -steeringExtreme, steeringExtreme);
+            imuReady = true;
+            //previousState = state;
 
+            cout << "heading: " << state[2] << ", error: " << error << endl;
+
+            motionController->SetSteering(requestedSteering, [] (bool success)
+            {
+
+            });
+        });
     }
 
     void ApplicationWillTerminate()

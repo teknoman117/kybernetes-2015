@@ -18,6 +18,7 @@
  */
 
 #include <Servo.h>
+#include <PID_v1.h>
 #include <stdint.h>
 #include <avr/wdt.h>
 
@@ -28,8 +29,7 @@
 #define encodersPortIn  PIND
 
 // Encoder State
-unsigned char _state = 0;
-int16_t        odometer = 0;
+volatile int16_t        encoder;
 
 // Servos Pins
 #define throttleOutput  5
@@ -40,16 +40,17 @@ int16_t        odometer = 0;
 // Servo state
 Servo   steeringServo;
 Servo   throttleServo;
-short   steeringTarget = 0;
-short   throttleTarget = 0;
-int32_t positionTarget = 0;
 
-// We need to remember what directional mode we are in for braking purposes
+short   steeringTarget;
+double  Target, Input, Output;
+PID     throttlePID(&Input, &Output, &Target, 0.2, 0.5, 0.1, DIRECT);
+
+/*// We need to remember what directional mode we are in for braking purposes
 typedef enum _direction_state_t : unsigned char
 {
   Forward, 
   Reverse
-} DirectionState;
+} DirectionState;*/
 
 // Radio Inputs
 #define throttleInput   PIND7
@@ -74,9 +75,10 @@ typedef enum _arm_state_t : unsigned char
 
 #define  armThreshold 1700
 #define  timeout 15000
+
 ArmState state;
 int      lastCommand;
-int      lastCheck;
+int      lastDisarmCheck;
 int      lastHeartbeat;
 
 //-------------------------------------------------------- ARM STATE UTILITIES --------------------------------------------
@@ -85,24 +87,38 @@ void EnsureDisarmed()
 {
   throttleServo.detach();
   steeringServo.detach();
+  
+  throttlePID.SetMode(MANUAL);
 }
 
 void Disarm(int now)
 {
-  state = Disarming;
-  odometer = 0;
-  lastCheck = now;
-  steeringTarget = 0;
-  throttleTarget = 0;
+  // Put the vehicle into braking mode
+  throttleServo.writeMicroseconds(steering_center);
   throttleServo.writeMicroseconds(throttle_stop);
+
+  // Used to check if the vehicle has stopped moving
+  lastDisarmCheck = now;
+  encoder = 0;
+  state = Disarming;
+
+  // Switch to manual control mode (won't update servos in loop() )
+  throttlePID.SetMode(MANUAL);
+  
   SendAlert("DISARMING");
 }
 
 void Arm()
 {
   state = Armed;
+
+  // Switch to automatic mode
+  throttlePID.SetMode(AUTOMATIC);
   steeringTarget = 0;
-  throttleTarget = 0;
+  encoder = 0;
+  Target = 0;
+
+  // Restart the servos
   throttleServo.attach(throttleOutput);
   steeringServo.attach(steeringOutput);
   SendAlert("ARMED");
@@ -179,23 +195,24 @@ void setup()
   pinMode(steeringOutput, OUTPUT);
   digitalWrite(steeringOutput, LOW);
   steeringServo.writeMicroseconds(steering_center);
+
+  // Configure PID
+  throttlePID.SetSampleTime(100);
+  throttlePID.SetOutputLimits(-300, 300);
   
   // Ensure we are disarmed
   EnsureDisarmed();
   
   // Initialize the arming system
   state = Killed;
-  lastCommand = millis();
-  lastCheck = millis();
-  lastHeartbeat = millis();
+  lastCommand = lastDisarmCheck = lastHeartbeat = millis();
   
   // Ensure interrupts are online
   sei();
   
   // Delay to make sure the motor controller resets
-  SendAlert("RESET");
   delay(1000);
-  SendAlert("READY");
+  Serial.println("STATUS:READY");
   
   // Turn on the watchdog timer
   wdt_enable(WDTO_120MS);
@@ -211,17 +228,8 @@ void loop()
   // Check if we should transition to another state
   if(state == Armed)
   {
-    if(now - lastCheck > 10)
-    {
-      Serial.print("ODOM:");
-      Serial.println(odometer);
-      odometer = 0;
-      lastCheck = now;
-    }
-    
     if(throttleValue < armThreshold)
     {
-      SendAlert("KILLED");
       Disarm(now);
     }
   
@@ -258,16 +266,16 @@ void loop()
   else if(state == Disarming)
   {
     // Disarming only finished once the robot has stopped moving
-    if(now - lastCheck > 500)
+    if(now - lastDisarmCheck > 500)
     {
-      lastCheck = now;
-      if(odometer == 0)
+      lastDisarmCheck = now;
+      if(encoder == 0)
       {
         EnsureDisarmed();
         state = Killed;
         SendAlert("KILLED");
       }
-      odometer = 0;
+      encoder = 0;
     } 
   }
 
@@ -379,19 +387,55 @@ void loop()
        
        if(state == Armed)
        {
-         throttleTarget = abs(atoi(target));
+         Target = fabs(atof(target));
          Serial.print("VELOCITY:OK;");
        } else
          Serial.print("VELOCITY:FAIL;");
        
        Serial.println(coden); 
     }
+    else if(!strcmp(command, "SETPID"))
+    {
+       // Get the input
+       char *kp = strtok_r(params, ";", &saveptr2);
+       if(kp == NULL)
+         goto commanderror;
+       char *ki = strtok_r(NULL, ";", &saveptr2);
+       if(ki == NULL)
+         goto commanderror;
+       char *kd = strtok_r(NULL, ";", &saveptr2);
+       if(kd == NULL)
+         goto commanderror;
+       char *code = strtok_r(NULL, ";", &saveptr2);
+       if(code == NULL)
+         goto commanderror;
+       int coden = atoi(code);
+       
+       throttlePID.SetTunings(atof(kp), atof(ki), atof(kd));
+       
+       Serial.print("SETPID:OK;");
+       Serial.println(coden); 
+    }
     lastCommand = now;
   }
-  commanderror:
   
-  throttleServo.writeMicroseconds(throttleTarget + throttle_stop);
-  steeringServo.writeMicroseconds(steeringTarget + steering_center);
+commanderror:
+
+  // Assign the servo's control values from the PID controller
+  Input = static_cast<double>(encoder);
+  if(throttlePID.Compute())
+  {
+    encoder = 0;
+    throttleServo.writeMicroseconds(static_cast<short>(Output) + throttle_stop);
+    steeringServo.writeMicroseconds(steeringTarget + steering_center);
+
+    Serial.print("DEBUG:PIDINFO;");
+    Serial.print(Target);
+    Serial.print(";");
+    Serial.print(Input);
+    Serial.print(";");
+    Serial.println(Output);
+  }
   
   // Reset the watchdog so we don't reset unless this code can't be called???
   SendHeartbeat(now);
@@ -403,25 +447,13 @@ void loop()
 // Int1 (Encoder CHA) ticked    (Note the cool XOR shit in the Servo article)
 void encoderTickA()
 { 
-  _state = ((encodersPortIn >> encoderCHAInput) ^ (encodersPortIn >> encoderCHBInput)) & 0x01;
-  if(_state) {
-    odometer++;
-  } 
-  else { 
-    odometer--;
-  }
+  encoder += (((encodersPortIn >> encoderCHAInput) ^ (encodersPortIn >> encoderCHBInput)) & 0x01) ? 1 : -1; 
 }
 
 // Int0 (Encoder CHB) ticked 
 void encoderTickB()
 { 
-  _state = ((encodersPortIn >> encoderCHAInput) ^ (encodersPortIn >> encoderCHBInput)) & 0x01;
-  if(_state) {
-    odometer--;
-  } 
-  else {
-    odometer++;
-  }
+  encoder += (((encodersPortIn >> encoderCHAInput) ^ (encodersPortIn >> encoderCHBInput)) & 0x01) ? -1 : 1; 
 }
 
 // ISR for the RC values

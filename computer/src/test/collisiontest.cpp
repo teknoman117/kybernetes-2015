@@ -31,7 +31,7 @@ public:
     void ApplicationDidLaunch(Application *application, int argc, char **argv)
     {
         // Open the motion controller
-        motionController = make_unique<MotionController>(MotionControllerPath, dispatch_get_main_queue(), 57600, [] (MotionController *, bool) {});
+        motionController = make_unique<MotionController>(MotionControllerPath, dispatch_get_main_queue(), 57600, [] (bool) {});
         sensorController = make_unique<SensorController>(SensorControllerPath, dispatch_get_main_queue(), 57600, [] (SensorController *, bool) {});
         motionControllerInitialized = false;
         motionControllerArmed       = false;
@@ -43,10 +43,10 @@ public:
         {
             switch(alert)
             {
-                case MotionController::AlertReady:
-                    motionControllerInitialized = true;
-                    cout << "[HEY LISTEN] I am ready to go!" << endl;
-                    break;
+                //case MotionController::AlertReady:
+                //    motionControllerInitialized = true;
+                //    cout << "[HEY LISTEN] I am ready to go!" << endl;
+                //    break;
 
                 // Arm the motion controller if the motion controller is not armed
                 case MotionController::AlertHeartbeat:

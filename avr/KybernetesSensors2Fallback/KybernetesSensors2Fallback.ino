@@ -88,7 +88,7 @@ void setup()
   if (error < 0) 
   {
     imuInitialized = false;
-    Serial.println("IMUSTATUS:ERROR");
+    Serial.println("STATUS:ERROR");
   }
   
   // IMU was successfully started
@@ -99,12 +99,12 @@ void setup()
     digitalWrite(12,LOW);
     if (imu->getCalibrationValid())
     {
-      Serial.println("IMUSTATUS:INITIALIZED;Using compass calibration");
+      Serial.println("STATUS:INITIALIZED;Using compass calibration");
       digitalWrite(12,HIGH);
     }
     else 
     {
-      Serial.println("IMUSTATUS:INITIALIZED;No valid compass calibration data");
+      Serial.println("STATUS:INITIALIZED;No valid compass calibration data");
       digitalWrite(12,LOW);
     }
   }
@@ -176,7 +176,7 @@ void loop()
     {
       if(imu->IMUGyroBiasValid())
       {
-        Serial.println("IMUSTATUS:READY");
+        Serial.println("STATUS:READY");
         imuValid = true;
       }
       lastIMUCheck = now; 

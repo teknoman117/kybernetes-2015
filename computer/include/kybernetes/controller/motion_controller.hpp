@@ -30,15 +30,14 @@ namespace kybernetes
                 AlertStatusKilled    = 3,
                 AlertHeartbeat       = 4,
                 AlertTimeout         = 5,
-                AlertReset           = 6,
-                AlertReady           = 7,
-                AlertUnknown         = 8,
+                AlertUnknown         = 6,
             } Alert;
 
-            typedef std::function<void (const std::string&)> StringCallback;
-            typedef std::function<void (bool)>               SuccessCallback;
-            typedef std::function<void (Alert)>              AlertCallback;
-            typedef std::function<void (ArmingStatus)>       ArmingStatusCallback;
+            typedef std::function<void (const std::string&)>              StringCallback;
+            typedef std::function<void (bool)>                            SuccessCallback;
+            typedef std::function<void (Alert)>                           AlertCallback;
+            typedef std::function<void (ArmingStatus)>                    ArmingStatusCallback;
+            typedef std::function<void (const std::vector<std::string>&)> DebugCallback;
 
         private:
             std::unique_ptr<io::SerialDispatchDevice> device;
@@ -46,6 +45,9 @@ namespace kybernetes
             std::atomic<uint8_t>                      index;
 
             AlertCallback                             alertHandler;
+            DebugCallback                             debugHandler;
+            SuccessCallback                           readyHandler;
+
             std::map<uint8_t, SuccessCallback>        requestArmCallbacks;
             std::map<uint8_t, SuccessCallback>        requestDisarmCallbacks;
             std::map<uint8_t, SuccessCallback>        requestPingCallbacks;
@@ -63,7 +65,7 @@ namespace kybernetes
             void ReceiveMessageHandler(const std::string& message);
 
         public:
-            MotionController(const std::string& path, dispatch_queue_t queue, uint32_t baudrate, std::function<void (MotionController *, bool)> handler);
+            MotionController(const std::string& path, dispatch_queue_t queue, uint32_t baudrate, SuccessCallback&& handler);
             ~MotionController();
 
             void RequestArm(SuccessCallback&& handler);
@@ -73,8 +75,11 @@ namespace kybernetes
 
             void SetVelocity(short velocity, SuccessCallback&& handler);
             void SetSteering(short steering, SuccessCallback&& handler);
+            void SetPID(float kp, float ki, float kd);
 
             void SetAlertHandler(AlertCallback&& handler);
+            void SetDebugHandler(DebugCallback&& handler);
+
             static std::string GetStringRepresentation(Alert alert);
         };
     }

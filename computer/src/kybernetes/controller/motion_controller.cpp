@@ -5,39 +5,36 @@
 #include <cmath>
 #include <ctime>
 #include <sstream>
+#include <iostream>
 
 using namespace std;
 
 namespace 
 {
-    static const string statusNames[8] = {"ARMED", "DISARMING", "IDLE", "KILLED", "HEARTBEAT", "TIMEOUT", "RESET", "READY"};
-    static const size_t statusNamesLength = 8;
+    static const string statusNames[6] = {"ARMED", "DISARMING", "IDLE", "KILLED", "HEARTBEAT", "TIMEOUT"};
+    static const size_t statusNamesLength = 6;
 }
 
 namespace kybernetes
 {
     namespace controller
     {
-        MotionController::MotionController(const std::string& path, dispatch_queue_t queue_, uint32_t baudrate, std::function<void (MotionController *, bool)> callback)
-            : queue(queue_)
+        MotionController::MotionController(const std::string& path, dispatch_queue_t queue_, uint32_t baudrate, MotionController::SuccessCallback&& callback)
+            : queue(queue_), readyHandler(move(callback)), index(0)
         {
-            // Open the sensor controller device
+            // Open the connection to the arduino
             device = make_unique<io::SerialDispatchDevice>(path, queue, baudrate, [this, callback] (bool success)
             {
-                // An error occurred
+                // An error occurred, fire the failed calback
                 if(!success)
                 {
-                    callback(this, false);
+                    dispatch_async(queue, ^{callback(false);});
                     return;
                 }
 
                 // Register the handler for receipt of a message
                 device->SetHandler(bind(&MotionController::ReceiveMessageHandler, this, placeholders::_1));
-                callback(this, true);
             });
-
-            // setup index
-            index = 0;
         }
 
         MotionController::~MotionController()
@@ -56,6 +53,11 @@ namespace kybernetes
         void MotionController::SetAlertHandler(MotionController::AlertCallback&& handler)
         {
             alertHandler = move(handler);
+        }
+
+        void MotionController::SetDebugHandler(DebugCallback&& handler)
+        {
+            debugHandler = move(handler);
         }
 
         void MotionController::RequestArm(MotionController::SuccessCallback&& handler)
@@ -130,6 +132,16 @@ namespace kybernetes
             device->Write(stream.str());
         }
 
+        void MotionController::SetPID(float kp, float ki, float kd)
+        {
+            int code = index++;
+            
+            // Push out the command
+            stringstream stream;
+            stream << "SETPID:" << kp << ";" << ki << ";" << kd << ";" << code << "\r\n";
+            device->Write(stream.str());
+        }
+
         void MotionController::ReceiveMessageHandler(const std::string& message)
         {
             // Parse the message and parameters
@@ -154,12 +166,18 @@ namespace kybernetes
                 alertHandler(alert);
             }
 
-            else if(commands[0] == "ODOM")
+            // Debug messages
+            else if(commands[0] == "DEBUG")
             {
-                if(parameters.size() != 1)
-                    return;
+                if(debugHandler)
+                    debugHandler(parameters);
+            }
 
-                //cout << "odometer last cycle = " << parameters[0] << endl;
+            // Status messages
+            else if(commands[0] == "STATUS")
+            {
+                if(parameters[0] == "READY")
+                    readyHandler(true);
             }
 
             // Request response
