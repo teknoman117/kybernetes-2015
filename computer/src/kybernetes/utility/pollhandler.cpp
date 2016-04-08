@@ -3,7 +3,6 @@
 
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
-#include <iostream>
 
 using namespace std;
 

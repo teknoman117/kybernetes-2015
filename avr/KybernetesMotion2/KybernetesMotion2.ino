@@ -29,7 +29,7 @@
 
 // Encoder State
 unsigned char _state = 0;
-int32_t        odometer = 0;
+int16_t        odometer = 0;
 
 // Servos Pins
 #define throttleOutput  5
@@ -79,6 +79,8 @@ int      lastCommand;
 int      lastCheck;
 int      lastHeartbeat;
 
+//-------------------------------------------------------- ARM STATE UTILITIES --------------------------------------------
+
 void EnsureDisarmed()
 {
   throttleServo.detach();
@@ -105,6 +107,8 @@ void Arm()
   steeringServo.attach(steeringOutput);
   SendAlert("ARMED");
 }
+
+//-------------------------------------------------------- ALERT HELPERS --------------------------------------------
  
 void SendAlert(const char *m)
 {
@@ -120,6 +124,8 @@ void SendHeartbeat(int now)
      lastHeartbeat = now;
   }
 }
+
+//-------------------------------------------------------- COMMUNICATION HELPERS --------------------------------------------
 
 int readline(int readch, char *buffer, int len)
 {
@@ -144,6 +150,8 @@ int readline(int readch, char *buffer, int len)
   // No end of line has been found, so return -1.
   return -1;
 }
+
+//-------------------------------------------------------- MAIN AREA --------------------------------------------
 
 void setup() 
 {
@@ -197,21 +205,31 @@ void loop()
 {
   // Get the current time
   int now = millis();
-  
+
+//-------------------------------------------------------- STATE TRANSISTIONS --------------------------------------------
+
   // Check if we should transition to another state
   if(state == Armed)
   {
-      if(throttleValue < armThreshold)
-      {
-        SendAlert("KILLED");
-        Disarm(now);
-      }
+    if(now - lastCheck > 10)
+    {
+      Serial.print("ODOM:");
+      Serial.println(odometer);
+      odometer = 0;
+      lastCheck = now;
+    }
     
-      else if(now - lastCommand >= timeout)
-      {
-        SendAlert("TIMEOUT");
-        Disarm(now);
-      }
+    if(throttleValue < armThreshold)
+    {
+      SendAlert("KILLED");
+      Disarm(now);
+    }
+  
+    else if(now - lastCommand >= timeout)
+    {
+      SendAlert("TIMEOUT");
+      Disarm(now);
+    }
   }
   
   // Verify the arm/disarm state
@@ -239,7 +257,7 @@ void loop()
   // If we are in the disarming state
   else if(state == Disarming)
   {
-    // Check odometer
+    // Disarming only finished once the robot has stopped moving
     if(now - lastCheck > 500)
     {
       lastCheck = now;
@@ -252,6 +270,8 @@ void loop()
       odometer = 0;
     } 
   }
+
+//-------------------------------------------------------- COMMAND PROCESSING --------------------------------------------
   
   // Process commands
   static char commandBuffer[128];
@@ -360,9 +380,9 @@ void loop()
        if(state == Armed)
        {
          throttleTarget = abs(atoi(target));
-         Serial.print("STEER:OK;");
+         Serial.print("VELOCITY:OK;");
        } else
-         Serial.print("STEER:FAIL;");
+         Serial.print("VELOCITY:FAIL;");
        
        Serial.println(coden); 
     }
@@ -377,6 +397,8 @@ void loop()
   SendHeartbeat(now);
   wdt_reset();
 }
+
+//-------------------------------------------------------- INTERRUPT SERVICE ROUTINES --------------------------------------------
 
 // Int1 (Encoder CHA) ticked    (Note the cool XOR shit in the Servo article)
 void encoderTickA()

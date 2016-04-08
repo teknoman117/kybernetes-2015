@@ -154,6 +154,14 @@ namespace kybernetes
                 alertHandler(alert);
             }
 
+            else if(commands[0] == "ODOM")
+            {
+                if(parameters.size() != 1)
+                    return;
+
+                //cout << "odometer last cycle = " << parameters[0] << endl;
+            }
+
             // Request response
             else if(parameters.size() == 2)
             {
@@ -163,35 +171,35 @@ namespace kybernetes
                 {
                     lock_guard<mutex> lock(requestArmCallbacksMutex);
                     auto handlerIt = requestArmCallbacks.find(code);
-                    handlerIt->second(parameters[0] == "OK");
+                    if(handlerIt != requestArmCallbacks.end()) handlerIt->second(parameters[0] == "OK");
                     requestArmCallbacks.erase(handlerIt);
                 }
                 else if(commands[0] == "DISARM")
                 {
                     lock_guard<mutex> lock(requestDisarmCallbacksMutex);
                     auto handlerIt = requestDisarmCallbacks.find(code);
-                    handlerIt->second(parameters[0] == "OK");
+                    if(handlerIt != requestDisarmCallbacks.end()) handlerIt->second(parameters[0] == "OK");
                     requestDisarmCallbacks.erase(handlerIt);
                 }
                 else if(commands[0] == "PING")
                 {
                     lock_guard<mutex> lock(requestPingCallbacksMutex);
                     auto handlerIt = requestPingCallbacks.find(code);
-                    handlerIt->second(parameters[0] == "OK");
+                    if(handlerIt != requestPingCallbacks.end()) handlerIt->second(parameters[0] == "OK");
                     requestPingCallbacks.erase(handlerIt);
                 }
                 else if(commands[0] == "STEER")
                 {
                     lock_guard<mutex> lock(setSteeringCallbacksMutex);
                     auto handlerIt = setSteeringCallbacks.find(code);
-                    handlerIt->second(parameters[0] == "OK");
+                    if(handlerIt != setSteeringCallbacks.end()) handlerIt->second(parameters[0] == "OK");
                     setSteeringCallbacks.erase(handlerIt);
                 }
                 else if(commands[0] == "VELOCITY")
                 {
                     lock_guard<mutex> lock(setVelocityCallbacksMutex);
                     auto handlerIt = setVelocityCallbacks.find(code);
-                    handlerIt->second(parameters[0] == "OK");
+                    if(handlerIt != setVelocityCallbacks.end()) handlerIt->second(parameters[0] == "OK");
                     setVelocityCallbacks.erase(handlerIt);
                 }
                 else if(commands[0] == "ARMSTAT")
@@ -202,7 +210,7 @@ namespace kybernetes
                     // Get the enum entry of the response
                     auto command = find(statusNames, statusNames + statusNamesLength, parameters[0]);
                     MotionController::ArmingStatus status = static_cast<MotionController::ArmingStatus>(distance(statusNames, command));
-                    handlerIt->second(status);
+                    if(handlerIt != requestArmStatusCallbacks.end()) handlerIt->second(status);
                     requestArmStatusCallbacks.erase(handlerIt);
                 }
             }

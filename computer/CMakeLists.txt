@@ -41,14 +41,17 @@ target_link_libraries (kybernetes opencv_imgproc)
 target_link_libraries (kybernetes opencv_objdetect)
 
 # Applications
-add_executable(app_test src/test/apptest.cpp)
-target_link_libraries(app_test kybernetes)
+add_executable(robomagellan src/robomagellan/main.cpp)
+target_link_libraries(robomagellan kybernetes)
 
-add_executable(garmingps_test src/test/garmingpstest.cpp)
-target_link_libraries(garmingps_test kybernetes)
+add_executable(sensor_diagnostics src/sensor_diagnostics/main.cpp)
+target_link_libraries(sensor_diagnostics kybernetes)
 
-add_executable(sensor_test src/test/sensortest.cpp)
-target_link_libraries(sensor_test kybernetes)
+add_executable(collision_test src/test/collisiontest.cpp)
+target_link_libraries(collision_test kybernetes)
 
-add_executable(motion_test src/test/motiontest.cpp)
-target_link_libraries(motion_test kybernetes)
+add_executable(vision_test src/test/visiontest.cpp)
+target_link_libraries(vision_test kybernetes)
+
+add_executable(drive_test src/test/drivetest.cpp)
+target_link_libraries(drive_test kybernetes)
