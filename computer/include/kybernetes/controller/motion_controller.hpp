@@ -76,6 +76,7 @@ namespace kybernetes
             void SetVelocity(short velocity, SuccessCallback&& handler);
             void SetSteering(short steering, SuccessCallback&& handler);
             void SetPID(float kp, float ki, float kd);
+            void SetDebug(bool debug = true);
 
             void SetAlertHandler(AlertCallback&& handler);
             void SetDebugHandler(DebugCallback&& handler);

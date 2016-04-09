@@ -142,6 +142,16 @@ namespace kybernetes
             device->Write(stream.str());
         }
 
+        void MotionController::SetDebug(bool debug)
+        {
+            int code = index++;
+            
+            // Push out the command
+            stringstream stream;
+            stream << "SETDEBUG:" << (debug ? 1 : 0) << ";" << code << "\r\n";
+            device->Write(stream.str());
+        }
+
         void MotionController::ReceiveMessageHandler(const std::string& message)
         {
             // Parse the message and parameters

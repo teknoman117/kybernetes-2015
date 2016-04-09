@@ -21,10 +21,6 @@ using namespace kybernetes::utility;
 
 namespace
 {
-    const float kp = 0.15;
-    const float ki = 0.05;
-    const float kd = 0.02;
-
     const float headingKp = (450.0 / 45.0);
     const short steeringExtreme = 450;
 
@@ -53,11 +49,30 @@ class MotionTestApplication : public Application::Delegate
     SensorController::IMUState   previousState;
     float                        targetHeading;
 
+    short speed = 0;
+    short gospeed = 0;
+    float Kc = 0.10;
+    float tI = 1.00;
+    float tD = 0.01;
+    int count = 0;
+
 public:
     void ApplicationDidLaunch(Application *application, int argc, char **argv)
     {
         motionControllerInitialized = false;
         motionControllerArmed       = false;
+
+
+        if(argc < 5)
+        {
+            Application::Instance()->Exit();
+            return;
+        }
+
+        Kc = atof(argv[1]);
+        tI = atof(argv[2]);
+        tD = atof(argv[3]);
+        speed = atoi(argv[4]);
 
         // Open the motion controller
         motionController = make_unique<MotionController>(MotionControllerPath, dispatch_get_main_queue(), 57600, [this] (bool success) 
@@ -73,7 +88,8 @@ public:
             // Motion controller has become ready
             cout << "[HEY LISTEN] I am ready to go!" << endl;
             motionControllerInitialized = true;
-            motionController->SetPID(kp, ki, kd);
+            motionController->SetPID(Kc, tI, tD);
+            motionController->SetDebug();
 
             motionController->SetDebugHandler([] (const vector<string>& messages)
             {
@@ -126,6 +142,22 @@ public:
                                 motionControllerArmed = success;
                                 targetHeading = previousState[SensorController::IMUState::Yaw];
                             });
+                            count = 0;
+                        } 
+                        else if(motionControllerInitialized && motionControllerArmed)
+                        {
+                            if(++count > 10)
+                            {
+                                gospeed = -gospeed;
+                                motionController->SetVelocity(gospeed, [] (bool success)
+                                {
+                                    if(!success)
+                                        cout << "[HEY LISTEN] I failed to set my velocity" << endl;
+                                    else
+                                        cout << "[HEY LISTEN] I AM MOVING!!" << endl;
+                                });
+                                count = 0;
+                            }
                         }
                         break;
 
@@ -141,7 +173,8 @@ public:
 
                     // If we become armed, sent a set velocity request
                     case MotionController::AlertStatusArmed:
-                        motionController->SetVelocity(200, [] (bool success)
+                        gospeed = speed;
+                        motionController->SetVelocity(speed, [] (bool success)
                         {
                             if(!success)
                                 cout << "[HEY LISTEN] I failed to set my velocity" << endl;

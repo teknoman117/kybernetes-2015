@@ -18,9 +18,139 @@
  */
 
 #include <Servo.h>
-#include <PID_v1.h>
 #include <stdint.h>
 #include <avr/wdt.h>
+
+template<typename T> T clamp(T x, T a, T b)
+{
+  if(x > b)
+    return b;
+  else if(x < a)
+    return a;
+
+  return x;
+}
+
+// velocity pid controller (see http://www2.widener.edu/~crn0001/Engr314/Digital%20PID%20Controllers-2.pdf)
+struct pid_t
+{
+  // Device state
+  double Target;
+  double Output;
+  
+  double Input;
+  double InputT_1;
+  double InputT_2;
+
+  double OutputMaximum;
+  double OutputMinimum;
+  
+  double Kc;
+  double tI;
+  double tD;
+
+  // State
+  bool   enabled;
+  int    lastUpdate;
+  int    updateInterval;
+
+  // Constructor sets default settings
+  pid_t() 
+  {
+    OutputMinimum = -350;
+    OutputMaximum = 350;
+
+    Kc = 0.2;
+    tI = 0.5;
+    tD = 0.1;
+
+    enabled        = false;
+    updateInterval = 20;
+  }
+
+  // Reset the state to "prior to movement"
+  void Reset(int now)
+  {
+    Target     = 0.0;
+    Output     = 0.0;
+    Input      = 0.0;
+    InputT_1   = 0.0;
+    InputT_2   = 0.0;
+
+    lastUpdate = now;
+  }
+
+  // Set enabled helper function - calls reset when switching from disabled to enabled
+  void SetEnabled(int now, bool enabled_)
+  {
+    if(enabled_ && enabled_ != enabled)
+      Reset(now);
+
+    enabled = enabled_;
+  }
+
+  // Set tunings
+  void SetTunings(int now, double p, double i, double d)
+  {
+    double updateIntervalSeconds = ((double)updateInterval)/1000.0;
+
+    // Compute constants
+    Kc = p;
+    tI = updateIntervalSeconds / i;
+    tD = d / updateIntervalSeconds;
+    
+    Reset(now);
+  }
+
+  // Compute 
+  bool Compute(int now, bool debug)
+  {
+    if(!enabled || now - lastUpdate < updateInterval)
+      return false;
+
+    int hurr = micros();
+    double e = Target - Input;
+
+    double pTerm = InputT_1 - Input;
+    double iTerm = tI*e;
+    double dTerm = -tD*(Input - 2*InputT_1 + InputT_2);
+    
+    Output += Kc * (pTerm + iTerm + dTerm);
+    Output = clamp(Output, OutputMinimum, OutputMaximum);
+    int duration = micros() - hurr;
+    
+    if(debug)
+    {
+      Serial.print("DEBUG:PIDINFO;");
+      Serial.print(Target);
+      Serial.print(";");
+      Serial.print(Output);
+      Serial.print(";");
+      Serial.print(e);
+      Serial.print(";");
+      Serial.print(pTerm);
+      Serial.print(";");
+      Serial.print(iTerm);
+      Serial.print(";");
+      Serial.print(dTerm);
+      Serial.print(";");
+      Serial.print(Input);
+      Serial.print(";");
+      Serial.print(InputT_1);
+      Serial.print(";");
+      Serial.print(InputT_2);
+      Serial.print(";");
+      Serial.println(duration);
+    }
+
+    // Update history
+    InputT_2 = InputT_1;
+    InputT_1 = Input;
+    lastUpdate = now;
+
+    return true;
+  }
+};
 
 // Encoder Inputs
 #define encoderCHAInput PIND3
@@ -28,43 +158,22 @@
 #define encodersDDR     DDRD
 #define encodersPortIn  PIND
 
-// Encoder State
-volatile int16_t        encoder;
-
-// Servos Pins
-#define throttleOutput  5
-#define steeringOutput  4
-#define throttle_stop   1550
-#define steering_center 1550
-
-// Servo state
-Servo   steeringServo;
-Servo   throttleServo;
-
-short   steeringTarget;
-double  Target, Input, Output;
-PID     throttlePID(&Input, &Output, &Target, 0.2, 0.5, 0.1, DIRECT);
-
-/*// We need to remember what directional mode we are in for braking purposes
-typedef enum _direction_state_t : unsigned char
-{
-  Forward, 
-  Reverse
-} DirectionState;*/
-
 // Radio Inputs
 #define throttleInput   PIND7
 #define steeringInput   PIND6
 #define radioDDR        DDRD
 #define radioPortIn     PIND
 
-// Radio state
-volatile short         throttleValue = 1500;
-volatile short         steeringValue = 1500;
-volatile unsigned long sS, sT;
-volatile unsigned char _state_s_ = 0, _state_t_ = 0;
+// Servos Outputs and Centers
+#define throttleOutput  5
+#define steeringOutput  4
+#define throttle_stop   1525
+#define steering_center 1550
 
-// Arming state
+// State Settings
+#define  armThreshold 1700
+#define  timeout      2500
+
 typedef enum _arm_state_t : unsigned char
 {
   Killed,          // Can not be armed
@@ -73,9 +182,30 @@ typedef enum _arm_state_t : unsigned char
   Disarming,       // In the process of disarming
 } ArmState;
 
-#define  armThreshold 1700
-#define  timeout 15000
+/*// We need to remember what directional mode we are in for braking purposes
+typedef enum _direction_state_t : unsigned char
+{
+  Forward, 
+  Reverse
+} DirectionState;*/
 
+// Encoder State
+volatile int16_t encoder;
+
+// Servo state
+Servo       steeringServo;
+short       steeringTarget;
+Servo       throttleServo;
+pid_t       throttlePID;
+bool        debugMode = false;
+
+// Radio state
+volatile short         throttleValue = 1500;
+volatile short         steeringValue = 1500;
+volatile unsigned long sS, sT;
+volatile unsigned char _state_s_ = 0, _state_t_ = 0;
+
+// Arming state
 ArmState state;
 int      lastCommand;
 int      lastDisarmCheck;
@@ -83,40 +213,43 @@ int      lastHeartbeat;
 
 //-------------------------------------------------------- ARM STATE UTILITIES --------------------------------------------
 
-void EnsureDisarmed()
+void EnsureDisarmed(int now)
 {
+  // Ensure everthing is disabled
   throttleServo.detach();
   steeringServo.detach();
   
-  throttlePID.SetMode(MANUAL);
+  throttlePID.SetEnabled(now, false);
 }
 
 void Disarm(int now)
 {
-  // Put the vehicle into braking mode
+  state = Disarming;
+  
+  // Put the vehicle into braking mode (assuming rock crawler turnigy ESC mode)
   throttleServo.writeMicroseconds(steering_center);
   throttleServo.writeMicroseconds(throttle_stop);
 
   // Used to check if the vehicle has stopped moving
   lastDisarmCheck = now;
-  encoder = 0;
-  state = Disarming;
+  encoder         = 0;
 
-  // Switch to manual control mode (won't update servos in loop() )
-  throttlePID.SetMode(MANUAL);
+  // Disable the PID controller
+  throttlePID.SetEnabled(now, false);
   
   SendAlert("DISARMING");
 }
 
-void Arm()
+void Arm(int now)
 {
   state = Armed;
 
-  // Switch to automatic mode
-  throttlePID.SetMode(AUTOMATIC);
+  // Reset our variables
   steeringTarget = 0;
-  encoder = 0;
-  Target = 0;
+  encoder        = 0;
+  
+  // Reset and enable PID
+  throttlePID.SetEnabled(now, true);
 
   // Restart the servos
   throttleServo.attach(throttleOutput);
@@ -195,13 +328,9 @@ void setup()
   pinMode(steeringOutput, OUTPUT);
   digitalWrite(steeringOutput, LOW);
   steeringServo.writeMicroseconds(steering_center);
-
-  // Configure PID
-  throttlePID.SetSampleTime(100);
-  throttlePID.SetOutputLimits(0, 300);
   
   // Ensure we are disarmed
-  EnsureDisarmed();
+  EnsureDisarmed(millis());
   
   // Initialize the arming system
   state = Killed;
@@ -243,7 +372,7 @@ void loop()
   // Verify the arm/disarm state
   else if(state == Killed)
   {
-    EnsureDisarmed();
+    EnsureDisarmed(now);
     if(throttleValue >= armThreshold)
     {
       state = Idle;
@@ -254,7 +383,7 @@ void loop()
   // If we are in the idle state
   else if(state == Idle)
   {
-    EnsureDisarmed();
+    EnsureDisarmed(now);
     if(throttleValue < armThreshold)
     {
       state = Killed;
@@ -271,7 +400,7 @@ void loop()
       lastDisarmCheck = now;
       if(encoder == 0)
       {
-        EnsureDisarmed();
+        EnsureDisarmed(now);
         state = Killed;
         SendAlert("KILLED");
       }
@@ -307,7 +436,7 @@ void loop()
        {
          Serial.print("ARM:OK;");
          Serial.println(code); 
-         Arm();
+         Arm(now);
        }
        else
        {
@@ -387,7 +516,7 @@ void loop()
        
        if(state == Armed)
        {
-         Target = fabs(atof(target));
+         throttlePID.Target = atof(target);
          Serial.print("VELOCITY:OK;");
        } else
          Serial.print("VELOCITY:FAIL;");
@@ -410,10 +539,27 @@ void loop()
        if(code == NULL)
          goto commanderror;
        int coden = atoi(code);
-       
-       throttlePID.SetTunings(atof(kp), atof(ki), atof(kd));
+
+       throttlePID.SetTunings(now, atof(kp), atof(ki), atof(kd));
        
        Serial.print("SETPID:OK;");
+       Serial.println(coden); 
+    }
+    else if(!strcmp(command, "SETDEBUG"))
+    {
+       // Get the input
+       char *on = strtok_r(params, ";", &saveptr2);
+       if(on == NULL)
+         goto commanderror;
+       char *code = strtok_r(NULL, ";", &saveptr2);
+       if(code == NULL)
+         goto commanderror;
+       int onv = atoi(on);
+       int coden = atoi(code);
+
+       debugMode = (onv > 0);
+       
+       Serial.print("SETDEBUG:OK;");
        Serial.println(coden); 
     }
     lastCommand = now;
@@ -422,19 +568,12 @@ void loop()
 commanderror:
 
   // Assign the servo's control values from the PID controller
-  Input = static_cast<double>(encoder);
-  if(throttlePID.Compute())
+  throttlePID.Input = static_cast<double>(encoder);
+  if(throttlePID.Compute(now, debugMode))
   {
     encoder = 0;
-    throttleServo.writeMicroseconds(static_cast<short>(Output) + throttle_stop);
+    throttleServo.writeMicroseconds(static_cast<short>(throttlePID.Output) + throttle_stop);
     steeringServo.writeMicroseconds(steeringTarget + steering_center);
-
-    Serial.print("DEBUG:PIDINFO;");
-    Serial.print(Target);
-    Serial.print(";");
-    Serial.print(Input);
-    Serial.print(";");
-    Serial.println(Output);
   }
   
   // Reset the watchdog so we don't reset unless this code can't be called???

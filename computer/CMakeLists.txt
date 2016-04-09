@@ -8,8 +8,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY lib)
 
 # Use the NEON fpu
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fblocks -march=native -mfpu=neon -std=c11")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fblocks -march=native -mfpu=neon -std=c++14")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fblocks -march=native -mfpu=neon -std=c11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fblocks -march=native -mfpu=neon -std=c++14")
 
 # Tell CMAKE to invoke gcc on assembly sources
 set_property(SOURCE src/kybernetes/cv/yuv422_bithreshold.s PROPERTY LANGUAGE C)
