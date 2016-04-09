@@ -28,6 +28,8 @@ add_library(kybernetes SHARED src/kybernetes/io/serialdispatchdevice.cpp
                               src/kybernetes/utility/utility.cpp
                               src/kybernetes/utility/posixsignalhandler.cpp
                               src/kybernetes/utility/pollhandler.cpp
+                              src/kybernetes/network/serversocket.cpp
+                              src/kybernetes/network/socket.cpp
                               src/kybernetes/controller/sensor_controller.cpp
                               src/kybernetes/controller/motion_controller.cpp
                               src/kybernetes/cv/yuv422_bithreshold.s
@@ -52,6 +54,10 @@ target_link_libraries(collision_test kybernetes)
 
 add_executable(vision_test src/test/visiontest.cpp)
 target_link_libraries(vision_test kybernetes)
+target_link_libraries(vision_test opencv_videoio)
+
+add_executable(dump_test src/test/imgdumptest.cpp)
+target_link_libraries(dump_test kybernetes)
 
 add_executable(drive_test src/test/drivetest.cpp)
 target_link_libraries(drive_test kybernetes)

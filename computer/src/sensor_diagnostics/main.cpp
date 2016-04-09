@@ -61,7 +61,8 @@ public:
         };
 
         // Open the sensor controller
-        sensorController = make_unique<SensorController>(path, dispatch_get_main_queue(), 57600, [monitorBumpers, monitorSonars, monitorIMU, cutoff] (SensorController *sensorController, bool success)
+        cout << "Attempting to open the sensor controller.  Please allow a few moments for the IMU Gyro Bias to stabilize" << endl;
+        sensorController = make_unique<SensorController>(path, dispatch_get_main_queue(), 57600, [this, monitorBumpers, monitorSonars, monitorIMU, cutoff] (bool success)
         {
             if(!success)
             {
@@ -71,6 +72,7 @@ public:
             }
 
             // Register handlers
+            cout << "Sensor controller opened successfully" << endl;
             if(monitorSonars)
             {
                 sensorController->SetSonarHandler([cutoff] (SensorController::SonarState& state)

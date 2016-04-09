@@ -32,7 +32,7 @@ public:
     {
         // Open the motion controller
         motionController = make_unique<MotionController>(MotionControllerPath, dispatch_get_main_queue(), 57600, [] (bool) {});
-        sensorController = make_unique<SensorController>(SensorControllerPath, dispatch_get_main_queue(), 57600, [] (SensorController *, bool) {});
+        sensorController = make_unique<SensorController>(SensorControllerPath, dispatch_get_main_queue(), 57600, [] (bool) {});
         motionControllerInitialized = false;
         motionControllerArmed       = false;
         collisionEmergency          = false;

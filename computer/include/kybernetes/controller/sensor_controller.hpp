@@ -91,6 +91,7 @@ namespace kybernetes
         private:
             std::unique_ptr<io::SerialDispatchDevice> device;
             dispatch_queue_t                          queue;
+            SuccessCallback                           readyCallback;
 
             std::function<void (SensorController::SonarState&)>  sonarCallback;
             std::function<void (SensorController::IMUState&)>    imuCallback;
@@ -99,7 +100,7 @@ namespace kybernetes
             void ReceiveMessageHandler(const std::string& message);
 
         public:
-            SensorController(std::string path, dispatch_queue_t queue, const uint32_t baudrate, std::function<void (SensorController *, bool)> handler);
+            SensorController(std::string path, dispatch_queue_t queue, const uint32_t baudrate, SuccessCallback&& handler);
 
             void SetSonarHandler(std::function<void (SensorController::SonarState&)>&& handler);
             void SetIMUHandler(std::function<void (SensorController::IMUState&)>&& handler);

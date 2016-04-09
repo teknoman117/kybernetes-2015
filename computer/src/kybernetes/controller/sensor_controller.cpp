@@ -12,22 +12,21 @@ namespace kybernetes
     namespace controller
     {
         // Open the GPS
-        SensorController::SensorController(std::string path, dispatch_queue_t queue_, const uint32_t baudrate, std::function<void (SensorController *, bool)> callback)
-            : queue(queue_)
+        SensorController::SensorController(std::string path, dispatch_queue_t queue_, const uint32_t baudrate, SuccessCallback&& callback)
+            : queue(queue_), readyCallback(move(callback))
         {
             // Open the sensor controller device
-            device = make_unique<io::SerialDispatchDevice>(path, queue, baudrate, [this, callback] (bool success)
+            device = make_unique<io::SerialDispatchDevice>(path, queue, baudrate, [this] (bool success)
             {
                 // An error occurred
                 if(!success)
                 {
-                    dispatch_async(queue, ^{callback(this, false);});
+                    dispatch_async(queue, ^{readyCallback(false);});
                     return;
                 }
 
                 // Register the handler for receipt of a message
                 device->SetHandler(bind(&SensorController::ReceiveMessageHandler, this, placeholders::_1));
-                dispatch_async(queue, ^{callback(this, true);});
             });
         }
 
@@ -61,7 +60,22 @@ namespace kybernetes
             utility::tokenize(commands[1], ";", parameters);
 
             // Process the command
-            if(commands[0] == "IMU")
+            if(commands[0] == "STATUS")
+            {
+                if(parameters.size() < 1) 
+                    return;
+
+                if(parameters[0] == "READY")
+                {
+                    readyCallback(true);
+                }
+                else if(parameters[0] == "ERROR")
+                {
+                    readyCallback(false);
+                    device.reset(nullptr);
+                }
+            }
+            else if(commands[0] == "IMU")
             {
                 SensorController::IMUState state;
                 if(parameters.size() != 3)

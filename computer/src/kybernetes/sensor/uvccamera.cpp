@@ -31,50 +31,89 @@
 #include <cstdlib>
 #include <cstring>
 
-// External libraries
-//#include <jpeglib.h>
-
 using namespace kybernetes::sensor;
+using namespace std;
 
 // Supports V4L2_PIX_FMT_YUYV and V4L2_PIX_FMT_MJPEG
-UVCCamera::UVCCamera( std::string device, int _width, int _height, int format )
-    : videodevice(device), width(_width), height(_height), formatIn(format), isstreaming(false), m_pan(0), m_tilt(0)
+UVCCamera::UVCCamera( std::string device, int _width, int _height, int format, dispatch_queue_t queue_, std::function<void (bool)> callback )
+    : videodevice(device), width(_width), height(_height), formatIn(format), isstreaming(false), m_pan(0), m_tilt(0), queue(queue_)
 {
     // Check that we have correct parameters
     if( (device.length() == 0) || (width == 0) || (height == 0) ) 
     {
-        std::cerr << "Error: UVCCamera - parameter error\n" << std::endl;
+        dispatch_async(queue, ^{callback(false);});
         return;
     }
 
     // Try to initialize V4L2
     if(initV4L2()) 
     {
-        std::cerr << "Error: UVCCamera - device init failed" << std::endl;
         close(cam);
+        dispatch_async(queue, ^{callback(false);});
         return;
     }
 
     // Try to start the video feed
-    if(setStreaming(true)) {
-        std::cerr << "Error: UVCCamera - could not start video stream" << std::endl;
+    if(setStreaming(true))
+    {
         close(cam);
+        dispatch_async(queue, ^{callback(false);});
         return;
     }
+
+    // 
+    frameCaptureThreadKill = false;
+    frameCaptureThread = thread([this] ()
+    {
+        while(!frameCaptureThreadKill)
+        {
+            struct v4l2_buffer  buffer;
+            void               *imageData;
+            size_t              imageDataSize;
+
+            if(!capture_buffer(&buffer, &imageData, &imageDataSize))
+            {
+                dispatch_async(queue, ^
+                {
+                    // clone the buffer so we can delete it
+                    struct v4l2_buffer dbuffer = buffer;
+                    if(frameCaptureCallback)
+                    {
+                        frameCaptureCallback(imageData, imageDataSize);
+                    }
+                    release_buffer(&dbuffer);
+                });
+            }
+        }
+    });
+    frameCaptureThread.detach();
+
+    dispatch_async(queue, ^{callback(true);});
 }
 
-UVCCamera::~UVCCamera() {
+UVCCamera::~UVCCamera()
+{
+    frameCaptureThreadKill = true;
+    frameCaptureThread.join();
+
     // Stop streaming
     setStreaming(false);
     
     // Unmap the buffers
-    for (int i = 0; i < NB_BUFFER; i++) munmap (mem[i], buf.length);
+    for (int i = 0; i < NB_BUFFER; i++) 
+        munmap (mem[i], buf.length);
     
     // Close the camera
     close(cam);
 }
 
-int UVCCamera::initV4L2() {
+void UVCCamera::SetFrameCaptureCallback(std::function<void (void *data, size_t length)>&& callback)
+{
+    frameCaptureCallback = move(callback);
+}
+
+int UVCCamera::initV4L2()
+{
     // Open the camera device file
     if( (cam = open(videodevice.c_str(), O_RDWR)) < 0 ) 
     {
@@ -196,54 +235,6 @@ int UVCCamera::setStreaming(bool streaming)
 
     // Return success
     return 0;   
-}
-
-int UVCCamera::grab(std::vector<unsigned char>& data)
-{
-    // Ensure the video is indeed streaming
-    if(setStreaming(true)) {
-        std::cerr << "Error: UVCCamera::grab() - could not start video stream" << std::endl;
-        return 1;
-    }
-
-    // Set the buffer type
-    memset( &buf, 0, sizeof (struct v4l2_buffer) );
-    buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    buf.memory = V4L2_MEMORY_MMAP;
-
-    // Dequeue a buffer frame
-    if( ioctl (cam, VIDIOC_DQBUF, &buf) < 0 ) {
-        std::cerr << "Error: UVCCamera::grab() - Unable to dequeue buffer" << std::endl;
-        return 1;
-    }
-     
-    // Perform an action based on the video type we are using       
-    if(this->formatIn == V4L2_PIX_FMT_YUYV) {
-        // YUYV data is packed 2 Y for every UV pair.
-        size_t framesize = (width * height) * 2;
-        data.resize(framesize); 
-
-        // Copy our data into the buffer
-        memcpy(data.data(), mem[buf.index], buf.bytesused);
-        //std::cout << "Framesize = " << framesize << ", used = " << buf.bytesused << std::endl;
-    } else if(this->formatIn == V4L2_PIX_FMT_MJPEG) {        
-        // Resize the image buffer to hold the frame
-        data.resize(buf.bytesused);
-
-        // Copy in the image body
-        memcpy (data.data(), mem[buf.index], buf.bytesused);
-    } else {
-        std::cerr << "Error: UVCCamera::uvcGrab() - camera using unsupported format" << std::endl;
-        return 1;
-    }
-
-    // Requeue the buffer
-    if( ioctl (this->cam, VIDIOC_QBUF, &this->buf) < 0 ) {
-        std::cerr << "Error: UVCCamera::grab() - Unable to requeue buffer" << std::endl;
-        return 1;
-    }
-
-    return 0;
 }
 
 int UVCCamera::capture_buffer(struct v4l2_buffer* buffer, void** data, size_t* len)

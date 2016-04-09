@@ -30,49 +30,21 @@
 // Language dependencies
 #include <vector>
 #include <string>
+#include <thread>
+#include <atomic>
+#include <functional>
+
+#include <dispatch/dispatch.h>
 
 // System dependencies
 #include <linux/videodev2.h>
 
-// Kybernetes namespace
-namespace kybernetes {
-    
-    // Sensors namespace
-    namespace sensor {
-        
-        // Class for a UVC driver camera
-        class UVCCamera {
-        public:
-            // Creation and destruction of the framegrabber
-            UVCCamera( std::string device, int _width, int _height, int format );
-            ~UVCCamera();
-
-            // Grabs an image that uses the format specified on construction
-            int grab(std::vector<unsigned char>& data);
-            
-            // Grabs an image from the camera
-            //int grab_and_decompress(std::vector<unsigned char>& data);
-            
-            // A bit more complex controls, grab only the buffers.  You must call
-            // release buffer at some point, or the camera runs out of buffers.
-            int capture_buffer(struct v4l2_buffer* buffer, void** data, size_t* len);
-            int release_buffer(struct v4l2_buffer* buffer);
-
-            // Standard color controls
-            int brightness( int nbrightness );
-            int saturation( int nsaturation );
-            int contrast( int ncontrast );
-            int gain( int ngain );
-            
-            // Pan, tilt, zoom controls
-            int ptz_reset(void);
-            int ptz_move_relative(int pan, int tilt, int zoom);
-            int ptz_move_absolute(int pan, int tilt, int zoom);
-
-            // Image functions
-            //int decompress_jpeg( void* jpeg_data, size_t jpeg_size, std::vector<unsigned char>& data);
-
-        private:
+namespace kybernetes 
+{
+    namespace sensor 
+    {
+        class UVCCamera 
+        {
             // The string which holds the device file this camera is on
             std::string videodevice;
             
@@ -102,6 +74,12 @@ namespace kybernetes {
             int           m_pan;
             int           m_tilt;
 
+            // Callback variables
+            std::function<void (void *data, size_t length)> frameCaptureCallback;
+            std::thread                                     frameCaptureThread;
+            std::atomic<bool>                               frameCaptureThreadKill;
+            dispatch_queue_t                                queue;
+
             // Initialize the v4l2 camera
             int initV4L2();
             
@@ -112,6 +90,30 @@ namespace kybernetes {
             int isControl(int control, struct v4l2_queryctrl *queryctrl);
             int getControl(int control);
             int setControl(int control, int value);
+            
+            // A bit more complex controls, grab only the buffers.  You must call
+            // release buffer at some point, or the camera runs out of buffers.
+            int capture_buffer(struct v4l2_buffer* buffer, void** data, size_t* len);
+            int release_buffer(struct v4l2_buffer* buffer);
+
+        public:
+            // Creation and destruction of the framegrabber V4L2_PIX_FMT_YUYV
+            UVCCamera( std::string device, int width, int height, int format, dispatch_queue_t queue, std::function<void (bool)> callback );
+            ~UVCCamera();
+
+            // Handler
+            void SetFrameCaptureCallback(std::function<void (void *data, size_t length)>&& callback);
+
+            // Standard color controls
+            int brightness( int nbrightness );
+            int saturation( int nsaturation );
+            int contrast( int ncontrast );
+            int gain( int ngain );
+            
+            // Pan, tilt, zoom controls
+            int ptz_reset(void);
+            int ptz_move_relative(int pan, int tilt, int zoom);
+            int ptz_move_absolute(int pan, int tilt, int zoom);
         };
     }
 }

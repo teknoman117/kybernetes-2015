@@ -198,7 +198,7 @@ void setup()
 
   // Configure PID
   throttlePID.SetSampleTime(100);
-  throttlePID.SetOutputLimits(-300, 300);
+  throttlePID.SetOutputLimits(0, 300);
   
   // Ensure we are disarmed
   EnsureDisarmed();

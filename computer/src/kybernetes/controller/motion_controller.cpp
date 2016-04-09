@@ -163,7 +163,9 @@ namespace kybernetes
 
                 auto command = find(statusNames, statusNames + statusNamesLength, parameters[0]);
                 MotionController::Alert alert = static_cast<MotionController::Alert>(distance(statusNames, command));
-                alertHandler(alert);
+                
+                if(alertHandler)
+                    alertHandler(alert);
             }
 
             // Debug messages
