@@ -37,8 +37,8 @@ namespace kybernetes
                 float     velocity[3];
 
                 // Some utility functions
-                double DistanceTo(struct State& state);
-                double HeadingTo(struct State& state);
+                double DistanceTo(struct State& state) const;
+                double HeadingTo(struct State& state) const;
                 State();
             };
         private:

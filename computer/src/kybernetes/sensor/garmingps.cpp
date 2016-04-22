@@ -65,7 +65,7 @@ namespace kybernetes
         }
 
         // Some utility functions
-        double GarminGPS::State::DistanceTo(struct State& state)
+        double GarminGPS::State::DistanceTo(struct State& state) const
         {
             // Compute our input variables
             double phi1 = latitude * DegToRad;
@@ -80,7 +80,7 @@ namespace kybernetes
             return R * c;
         }
 
-        double GarminGPS::State::HeadingTo(struct State& state)
+        double GarminGPS::State::HeadingTo(struct State& state) const
         {
             // Get everything in radians
             double phi1 = latitude * DegToRad;

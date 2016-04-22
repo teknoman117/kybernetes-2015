@@ -113,7 +113,7 @@ namespace kybernetes
         {
             dispatch_once(&predicate, ^
             {
-                sharedInstance = new PollHandler(dispatch_get_main_queue());
+                sharedInstance = new PollHandler(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0));
             });
 
             return sharedInstance;

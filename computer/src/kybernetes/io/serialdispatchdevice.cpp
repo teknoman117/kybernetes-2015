@@ -12,18 +12,24 @@ namespace kybernetes
         SerialDispatchDevice::SerialDispatchDevice(const string& path, dispatch_queue_t queue_, uint32_t baudrate, SerialPort::DataBits dataBits, SerialPort::Parity parity, SerialPort::StopBits stopBits, function<void (bool)> callback)
             : port(path), queue(queue_)
         {
-            serialPort = make_unique<SerialPort>(path, baudrate, dataBits, parity, stopBits, [this, callback] (SerialPort *device, SerialPort::Error error)
+
+            serialPortLock = dispatch_semaphore_create(1);
+            serialPort     = make_unique<SerialPort>(path, baudrate, dataBits, parity, stopBits, [this, callback] (SerialPort *device, SerialPort::Error error)
             {
                 if(error != SerialPort::Success || !device->SetBlocking(false))
                 {
                     dispatch_async(queue, ^{ callback(false); });
                     return;
                 }
+
                 device->Flush();
 
                 // Register signal handler
                 utility::PollHandler::Instance()->AttachHandler(device->GetHandle(), [this, device] ()
                 {
+                    // Wait for the serial port to become available
+                    dispatch_semaphore_wait(serialPortLock, DISPATCH_TIME_FOREVER);
+
                     // Read all the available data from the serial port
                     vector<char>::size_type quantity = device->Available();
                     vector<char>::size_type position = buffer.size();
@@ -44,6 +50,9 @@ namespace kybernetes
                             handler(message);
                         }
                     }
+
+                    // Unlock the serial port
+                    dispatch_semaphore_signal(serialPortLock);
                 });
 
                 // Success!

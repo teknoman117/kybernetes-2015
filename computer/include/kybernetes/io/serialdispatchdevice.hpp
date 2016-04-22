@@ -23,6 +23,7 @@ namespace kybernetes
             std::unique_ptr<SerialPort> serialPort;
             std::string                 port;
             dispatch_queue_t            queue;
+            dispatch_semaphore_t        serialPortLock;
             handler_t                   handler;
 
             std::vector<char>           buffer;

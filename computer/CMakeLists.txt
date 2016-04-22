@@ -24,9 +24,9 @@ add_library(kybernetes SHARED src/kybernetes/io/serialdispatchdevice.cpp
                               src/kybernetes/io/serialport.cpp
                               src/kybernetes/sensor/garmingps.cpp
                               src/kybernetes/sensor/uvccamera.cpp
+                              src/kybernetes/sensor/v4l2camera.cpp
                               src/kybernetes/utility/application.cpp
                               src/kybernetes/utility/utility.cpp
-                              src/kybernetes/utility/posixsignalhandler.cpp
                               src/kybernetes/utility/pollhandler.cpp
                               src/kybernetes/network/serversocket.cpp
                               src/kybernetes/network/socket.cpp
@@ -38,12 +38,13 @@ add_library(kybernetes SHARED src/kybernetes/io/serialdispatchdevice.cpp
 # Link our library to boost
 target_link_libraries (kybernetes dispatch)
 target_link_libraries (kybernetes pthread)
+target_link_libraries (kybernetes v4l2)
 target_link_libraries (kybernetes opencv_core)
 target_link_libraries (kybernetes opencv_imgproc)
 target_link_libraries (kybernetes opencv_objdetect)
 
 # Applications
-add_executable(robomagellan src/robomagellan/main.cpp)
+add_executable(robomagellan src/robomagellan/main.cpp src/robomagellan/movetotask.cpp src/robomagellan/findconetask.cpp)
 target_link_libraries(robomagellan kybernetes)
 
 add_executable(sensor_diagnostics src/sensor_diagnostics/main.cpp)
@@ -54,10 +55,12 @@ target_link_libraries(collision_test kybernetes)
 
 add_executable(vision_test src/test/visiontest.cpp)
 target_link_libraries(vision_test kybernetes)
-target_link_libraries(vision_test opencv_videoio)
+target_link_libraries(vision_test jpeg)
 
-add_executable(dump_test src/test/imgdumptest.cpp)
+add_executable(dump_test src/test/imgdumptest.cpp src/test/yuv.c)
 target_link_libraries(dump_test kybernetes)
+target_link_libraries(dump_test jpeg)
+target_link_libraries(dump_test v4l2)
 
 add_executable(drive_test src/test/drivetest.cpp)
 target_link_libraries(drive_test kybernetes)
