@@ -54,7 +54,7 @@ bool imuInitialized;
 
 // --------------- SONARS --------------
 #define SONAR_NUM     3 // Number or sensors.
-#define MAX_DISTANCE 200 // Maximum distance (in cm) to ping.
+#define MAX_DISTANCE 220 // Maximum distance (in cm) to ping.
 #define PING_INTERVAL 33 // Milliseconds between sensor pings (29ms is about the min to avoid cross-sensor echo).
 
 unsigned long pingTimer[SONAR_NUM]; // Holds the times when the next ping should happen for each sensor.
@@ -76,6 +76,8 @@ volatile bool bumpersChanged = false;
 
 void setup()
 {
+  delay(1000);
+  
   // Initialize Hardware
   Serial.begin(SERIAL_PORT_SPEED);
   Wire.begin();
@@ -86,7 +88,7 @@ void setup()
   if (error < 0) 
   {
     imuInitialized = false;
-    Serial.println("IMUSTATUS:ERROR");
+    Serial.println("STATUS:ERROR");
   }
   
   // IMU was successfully started
@@ -97,12 +99,12 @@ void setup()
     digitalWrite(12,LOW);
     if (imu->getCalibrationValid())
     {
-      Serial.println("IMUSTATUS:INITIALIZED;Using compass calibration");
+      Serial.println("STATUS:INITIALIZED;Using compass calibration");
       digitalWrite(12,HIGH);
     }
     else 
     {
-      Serial.println("IMUSTATUS:INITIALIZED;No valid compass calibration data");
+      Serial.println("STATUS:INITIALIZED;No valid compass calibration data");
       digitalWrite(12,LOW);
     }
   }
@@ -174,7 +176,7 @@ void loop()
     {
       if(imu->IMUGyroBiasValid())
       {
-        Serial.println("IMUSTATUS:READY");
+        Serial.println("STATUS:READY");
         imuValid = true;
       }
       lastIMUCheck = now; 
